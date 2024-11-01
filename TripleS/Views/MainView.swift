@@ -1,0 +1,200 @@
+import SwiftUI
+import Carbon
+import AppKit
+
+struct MainView: View {
+    @StateObject private var audioManager = AudioManager.shared
+    @State private var isSettingsPresented = false
+    @AppStorage("hotkeyModifiers") private var hotkeyModifiers = Int(modifierCmdKey | modifierControlKey)
+    @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode = Int(kVK_DownArrow)
+    @State private var isRecordingHotkey = false
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // Header
+            HStack {
+                Text("Triple S")
+                    .font(.largeTitle)
+                    .bold()
+                
+                Spacer()
+                
+                Button(action: { isSettingsPresented.toggle() }) {
+                    Image(systemName: "gear")
+                        .font(.title2)
+                }
+                .sheet(isPresented: $isSettingsPresented) {
+                    SettingsView()
+                }
+            }
+            .padding()
+            
+            // Current Device
+            if let currentDevice = audioManager.currentDevice {
+                HStack {
+                    Image(systemName: "speaker.wave.3")
+                        .font(.title)
+                    Text("Current Device:")
+                        .font(.headline)
+                    Text(currentDevice.name)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.gray.opacity(0.1)))
+            }
+            
+            // Hotkey Settings
+            VStack(spacing: 12) {
+                Text("Quick Switch Shortcut")
+                    .font(.headline)
+                
+                HStack {
+                    Text(getHotkeyString())
+                        .padding(8)
+                        .frame(minWidth: 120)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.gray.opacity(0.1))
+                        )
+                    
+                    Button(isRecordingHotkey ? "Press any key..." : "Record") {
+                        toggleHotkeyRecording()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                
+                Text("Click 'Record' and press your desired key combination")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 10)
+                .fill(Color.gray.opacity(0.1)))
+            
+            // Available Devices
+            ScrollView {
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Available Devices")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    ForEach(audioManager.availableDevices) { device in
+                        DeviceRow(device: device)
+                    }
+                }
+            }
+        }
+        .padding()
+        .frame(minWidth: 400, minHeight: 500)
+        .onAppear {
+            updateHotkey()
+        }
+    }
+    
+    private func getHotkeyString() -> String {
+        var str = ""
+        let flags = UInt(hotkeyModifiers)
+        
+        // Add modifier symbols in a consistent order
+        if flags & UInt(controlKey) != 0 { str += "⌃" }
+        if flags & UInt(optionKey) != 0 { str += "⌥" }
+        if flags & UInt(shiftKey) != 0 { str += "⇧" }
+        if flags & UInt(cmdKey) != 0 { str += "⌘" }
+        
+        // Convert key code to character
+        switch hotkeyKeyCode {
+        case kVK_DownArrow:
+            str += "↓"
+        case kVK_UpArrow:
+            str += "↑"
+        case kVK_LeftArrow:
+            str += "←"
+        case kVK_RightArrow:
+            str += "→"
+        case kVK_Space:
+            str += "Space"
+        case kVK_Return:
+            str += "↩"
+        case kVK_Delete:
+            str += "⌫"
+        case kVK_Escape:
+            str += "⎋"
+        case kVK_Tab:
+            str += "⇥"
+        default:
+            // Convert other keys to characters
+            let keyMap: [Int: String] = [
+                kVK_ANSI_A: "A", kVK_ANSI_B: "B", kVK_ANSI_C: "C", kVK_ANSI_D: "D",
+                kVK_ANSI_E: "E", kVK_ANSI_F: "F", kVK_ANSI_G: "G", kVK_ANSI_H: "H",
+                kVK_ANSI_I: "I", kVK_ANSI_J: "J", kVK_ANSI_K: "K", kVK_ANSI_L: "L",
+                kVK_ANSI_M: "M", kVK_ANSI_N: "N", kVK_ANSI_O: "O", kVK_ANSI_P: "P",
+                kVK_ANSI_Q: "Q", kVK_ANSI_R: "R", kVK_ANSI_S: "S", kVK_ANSI_T: "T",
+                kVK_ANSI_U: "U", kVK_ANSI_V: "V", kVK_ANSI_W: "W", kVK_ANSI_X: "X",
+                kVK_ANSI_Y: "Y", kVK_ANSI_Z: "Z",
+                kVK_ANSI_0: "0", kVK_ANSI_1: "1", kVK_ANSI_2: "2", kVK_ANSI_3: "3",
+                kVK_ANSI_4: "4", kVK_ANSI_5: "5", kVK_ANSI_6: "6", kVK_ANSI_7: "7",
+                kVK_ANSI_8: "8", kVK_ANSI_9: "9"
+            ]
+            str += keyMap[hotkeyKeyCode] ?? "?"
+        }
+        
+        return str.isEmpty ? "Click to record" : str
+    }
+    
+    private func toggleHotkeyRecording() {
+        isRecordingHotkey.toggle()
+        if isRecordingHotkey {
+            NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
+                handleKeyEvent(event)
+                return nil
+            }
+        }
+    }
+    
+    private func handleKeyEvent(_ event: NSEvent) {
+        if isRecordingHotkey {
+            print("Recording hotkey...")
+            print("Key code: \(event.keyCode)")
+            print("Key: \(event.characters ?? "unknown")")
+            print("Raw modifiers: \(event.modifierFlags.rawValue)")
+            
+            // Only allow combinations with at least one modifier
+            let validModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+            let currentModifiers = event.modifierFlags.intersection(validModifiers)
+            
+            guard !currentModifiers.isEmpty else {
+                print("Rejected: No modifier keys pressed")
+                return
+            }
+            
+            // Convert NSEvent modifiers to Carbon modifiers
+            var carbonModifiers: Int = 0
+            if currentModifiers.contains(.control) { carbonModifiers |= Int(controlKey) }
+            if currentModifiers.contains(.option) { carbonModifiers |= Int(optionKey) }
+            if currentModifiers.contains(.shift) { carbonModifiers |= Int(shiftKey) }
+            if currentModifiers.contains(.command) { carbonModifiers |= Int(cmdKey) }
+            
+            print("Carbon modifiers: \(carbonModifiers)")
+            
+            hotkeyModifiers = carbonModifiers
+            hotkeyKeyCode = Int(event.keyCode)
+            isRecordingHotkey = false
+            
+            // Update the hotkey immediately
+            DispatchQueue.main.async {
+                self.updateHotkey()
+            }
+        }
+    }
+    
+    private func updateHotkey() {
+        HotkeyManager.shared.unregister()
+        HotkeyManager.shared.register(
+            keyCode: hotkeyKeyCode,
+            modifiers: hotkeyModifiers
+        ) {
+            audioManager.switchToNextDevice()
+        }
+    }
+} 
