@@ -81,7 +81,8 @@ class AudioManager: ObservableObject {
     }
     
     func refreshAudioDevices() {
-        availableDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+        availableDevices = AudioDevice.getAllDevices()
+            .filter { $0.isOutput }
         currentDevice = AudioDevice.getCurrentDefault()
     }
     

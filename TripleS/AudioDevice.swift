@@ -69,20 +69,27 @@ struct AudioDevice: Identifiable, Hashable {
         
         self.name = unmanagedName.takeRetainedValue() as String
         
-        // Check if device is output
+        // Check specifically for output streams
         address.mSelector = kAudioDevicePropertyStreamConfiguration
         address.mScope = kAudioDevicePropertyScopeOutput
         
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(deviceID,
-                                           &address,
-                                           0,
-                                           nil,
-                                           &size) == noErr else {
-            return nil
+        var propSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &propSize) == noErr,
+              let audioBufferList = malloc(Int(propSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
+            self.isOutput = false
+            return
+        }
+        defer { free(audioBufferList) }
+        
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &propSize, audioBufferList) == noErr else {
+            self.isOutput = false
+            return
         }
         
-        self.isOutput = size > 0
+        let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
+        let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
+        
+        self.isOutput = outputChannelCount > 0
     }
     
     var isConnected: Bool {
@@ -147,5 +154,29 @@ struct AudioDevice: Identifiable, Hashable {
     
     static func == (lhs: AudioDevice, rhs: AudioDevice) -> Bool {
         lhs.id == rhs.id
+    }
+    
+    var hasOutputChannels: Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        var propSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(id, &address, 0, nil, &propSize) == noErr,
+              let audioBufferList = malloc(Int(propSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
+            return false
+        }
+        defer { free(audioBufferList) }
+        
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &propSize, audioBufferList) == noErr else {
+            return false
+        }
+        
+        let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
+        let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
+        
+        return outputChannelCount > 0
     }
 } 
