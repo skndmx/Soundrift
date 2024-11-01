@@ -25,6 +25,7 @@ struct MainView: View {
                 }
                 .sheet(isPresented: $isSettingsPresented) {
                     SettingsView()
+                        .frame(width: 300, height: 100)
                 }
             }
             .padding()
@@ -44,7 +45,21 @@ struct MainView: View {
                     .fill(Color.gray.opacity(0.1)))
             }
             
-            // Hotkey Settings
+           
+            // Available Devices
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Available Devices")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    ForEach(audioManager.availableDevices) { device in
+                        DeviceRow(device: device)
+                    }
+                }
+            }
+
+             // Hotkey Settings
             VStack(spacing: 12) {
                 Text("Quick Switch Shortcut")
                     .font(.headline)
@@ -72,18 +87,6 @@ struct MainView: View {
             .background(RoundedRectangle(cornerRadius: 10)
                 .fill(Color.gray.opacity(0.1)))
             
-            // Available Devices
-            ScrollView {
-                VStack(alignment: .leading, spacing: 15) {
-                    Text("Available Devices")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    ForEach(audioManager.availableDevices) { device in
-                        DeviceRow(device: device)
-                    }
-                }
-            }
         }
         .padding()
         .frame(minWidth: 400, minHeight: 500)
@@ -197,4 +200,9 @@ struct MainView: View {
             audioManager.switchToNextDevice()
         }
     }
+}
+
+#Preview {
+    MainView()
+        .frame(width: 400, height: 600)
 } 

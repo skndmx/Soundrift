@@ -46,4 +46,8 @@ struct DeviceRow: View {
             .fill(Color.gray.opacity(0.05)))
         .padding(.horizontal)
     }
+}
+
+#Preview {
+    DeviceRow(device: AudioDevice(previewWithName: "Preview Device"))
 } 

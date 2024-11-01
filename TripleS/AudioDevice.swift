@@ -179,4 +179,12 @@ struct AudioDevice: Identifiable, Hashable {
         
         return outputChannelCount > 0
     }
+    
+    #if DEBUG
+    init(previewWithName name: String) {
+        self.id = 0
+        self.name = name
+        self.isOutput = true
+    }
+    #endif
 } 

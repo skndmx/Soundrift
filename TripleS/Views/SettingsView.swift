@@ -1,59 +1,39 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
-    @StateObject private var audioManager = AudioManager.shared
-    @AppStorage("selectedHotkey") private var hotkey = "⌘⌥S"
+    @AppStorage("launchAtLogin") private var launchAtLogin = false
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Devices Section
-            GroupBox(label: Text("Audio Devices")) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Selected")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    ForEach(audioManager.availableDevices) { device in
-                        Toggle(isOn: binding(for: device)) {
-                            HStack {
-                                Image(systemName: "speaker.wave.2")
-                                    .foregroundColor(.secondary)
-                                Text(device.name)
-                            }
+            HStack {
+                Text("Settings")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+            }
+            .padding(.bottom)
+            
+            Toggle("Launch at login", isOn: $launchAtLogin)
+                .onChange(of: launchAtLogin) { newValue in
+                    if #available(macOS 13.0, *) {
+                        try? SMAppService.mainApp.register()
+                    } else {
+                        let success = SMLoginItemSetEnabled("com.yourapp.TripleS-LaunchHelper" as CFString, newValue)
+                        if !success {
+                            launchAtLogin = false
                         }
                     }
                 }
-                .padding(.vertical, 5)
-            }
-            
-            // Hotkey Section
-            GroupBox(label: Text("Hotkey")) {
-                HStack {
-                    TextField("Hotkey", text: $hotkey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 120)
-                    
-                    Button("Record") {
-                        // TODO: Implement hotkey recording
-                    }
-                }
-                .padding(.vertical, 5)
-            }
         }
         .padding()
-        .frame(width: 400, height: 500)
+        .frame(width: 300, height: 100)
     }
-    
-    private func binding(for device: AudioDevice) -> Binding<Bool> {
-        Binding(
-            get: { audioManager.selectedDevices.contains(device) },
-            set: { isSelected in
-                if isSelected {
-                    audioManager.selectedDevices.insert(device)
-                } else {
-                    audioManager.selectedDevices.remove(device)
-                }
-            }
-        )
-    }
+}
+
+#Preview {
+    SettingsView()
 } 
