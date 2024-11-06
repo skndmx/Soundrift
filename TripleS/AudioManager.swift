@@ -1,5 +1,6 @@
 import Foundation
 import CoreAudio
+import UserNotifications
 
 class AudioManager: ObservableObject {
     static let shared = AudioManager()
@@ -14,6 +15,15 @@ class AudioManager: ObservableObject {
     private let selectedDevicesKey = "SelectedDevices"
     
     private init() {
+        // Request notification permission
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { granted, error in
+            if granted {
+                print("Notification permission granted")
+            } else if let error = error {
+                print("Notification permission error: \(error)")
+            }
+        }
+        
         // Load saved selected devices
         if let savedDeviceIDs = UserDefaults.standard.array(forKey: selectedDevicesKey) as? [AudioDeviceID] {
             DispatchQueue.main.async { [weak self] in
@@ -112,6 +122,23 @@ class AudioManager: ObservableObject {
             print("Successfully switched to: \(nextDevice.name)")
             currentDevice = nextDevice
             NotificationCenter.default.post(name: NSNotification.Name("AudioDeviceSwitched"), object: nextDevice)
+            
+            // Show notification
+            let content = UNMutableNotificationContent()
+            content.title = "Audio Output Changed"
+            content.body = "Switched to \(nextDevice.name)"
+            
+            let request = UNNotificationRequest(
+                identifier: UUID().uuidString,
+                content: content,
+                trigger: nil
+            )
+            
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Error showing notification: \(error)")
+                }
+            }
         } else {
             print("Failed to switch to: \(nextDevice.name)")
         }
