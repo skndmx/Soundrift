@@ -10,86 +10,95 @@ struct MainView: View {
     @State private var isRecordingHotkey = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack {
+        HStack(spacing: 0) {
+            // Left Panel
+            VStack(spacing: 20) {
                 Text("Triple S")
                     .font(.largeTitle)
                     .bold()
                 
+                Image("AppIcon2")
+                    .resizable()
+                    .frame(width: 256, height: 256)
+                    .cornerRadius(8)
+                
+                Divider()
+                
+                // Hotkey Settings
+                VStack(spacing: 12) {
+                    Text("Quick Switch Shortcut")
+                        .font(.headline)
+                    
+                    HStack {
+                        Text(getHotkeyString())
+                            .padding(8)
+                            .frame(minWidth: 120)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.gray.opacity(0.1))
+                            )
+                        
+                        Button(isRecordingHotkey ? "Press any key..." : "Record") {
+                            toggleHotkeyRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    
+                    Text("Click 'Record' and press your desired key combination")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.gray.opacity(0.1)))
+                
                 Spacer()
                 
                 Button(action: { isSettingsPresented.toggle() }) {
-                    Image(systemName: "gear")
-                        .font(.title2)
+                    Label("Settings", systemImage: "gear")
                 }
                 .sheet(isPresented: $isSettingsPresented) {
                     SettingsView()
                         .frame(width: 300, height: 100)
                 }
             }
+            .frame(width: 250)
             .padding()
+            .background(Color.gray.opacity(0.05))
             
-            // Current Device
-            if let currentDevice = audioManager.currentDevice {
-                HStack {
-                    Image(systemName: "speaker.wave.3")
-                        .font(.title)
-                    Text("Current Device:")
-                        .font(.headline)
-                    Text(currentDevice.name)
-                        .foregroundColor(.secondary)
+            // Right Panel
+            VStack(spacing: 20) {
+                // Current Device
+                if let currentDevice = audioManager.currentDevice {
+                    HStack {
+                        Image(systemName: "speaker.wave.3")
+                            .font(.title)
+                        Text("Current Device:")
+                            .font(.headline)
+                        Text(currentDevice.name)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.gray.opacity(0.1)))
                 }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.gray.opacity(0.1)))
-            }
-            
-           
-            // Available Devices
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Available Devices")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    ForEach(audioManager.availableDevices) { device in
-                        DeviceRow(device: device)
+                
+                // Available Devices
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Available Devices")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        ForEach(audioManager.availableDevices) { device in
+                            DeviceRow(device: device)
+                        }
                     }
                 }
             }
-
-             // Hotkey Settings
-            VStack(spacing: 12) {
-                Text("Quick Switch Shortcut")
-                    .font(.headline)
-                
-                HStack {
-                    Text(getHotkeyString())
-                        .padding(8)
-                        .frame(minWidth: 120)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.gray.opacity(0.1))
-                        )
-                    
-                    Button(isRecordingHotkey ? "Press any key..." : "Record") {
-                        toggleHotkeyRecording()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                
-                Text("Click 'Record' and press your desired key combination")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 10)
-                .fill(Color.gray.opacity(0.1)))
-            
         }
-        .padding()
-        .frame(minWidth: 400, minHeight: 500)
+        .frame(minWidth: 800, minHeight: 500)
         .onAppear {
             updateHotkey()
         }
@@ -204,5 +213,5 @@ struct MainView: View {
 
 #Preview {
     MainView()
-        .frame(width: 400, height: 600)
+        .frame(width: 800, height: 600)
 } 

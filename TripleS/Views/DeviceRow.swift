@@ -49,5 +49,8 @@ struct DeviceRow: View {
 }
 
 #Preview {
-    DeviceRow(device: AudioDevice(previewWithName: "Preview Device"))
+    if let previewDevice = AudioDevice(deviceID: 1) {
+        DeviceRow(device: previewDevice)
+            .environmentObject(AudioManager.shared)
+    }
 } 
