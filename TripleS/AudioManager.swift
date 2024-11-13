@@ -98,8 +98,20 @@ class AudioManager: ObservableObject {
     }
     
     func refreshAudioDevices() {
-        availableDevices = AudioDevice.getAllDevices()
-            .filter { $0.isOutput }
+        let newDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+        
+        // Find newly connected devices that aren't in the current selection
+        let newlyConnectedDevices = Set(newDevices).subtracting(availableDevices)
+        
+        // Update available devices
+        availableDevices = newDevices
+        
+        // Automatically select newly connected devices
+        selectedDevices.formUnion(newlyConnectedDevices)
+        
+        // Save the updated selection
+        saveSelectedDevices()
+        
         currentDevice = AudioDevice.getCurrentDefault()
     }
     
