@@ -9,6 +9,13 @@ struct MainView: View {
     @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode = Int(kVK_DownArrow)
     @State private var isRecordingHotkey = false
     
+    private func updateDefaultHotkeyIfNeeded() {
+        if hotkeyModifiers == 0 && hotkeyKeyCode == Int(kVK_DownArrow) {
+            hotkeyModifiers = Int(modifierCmdKey | modifierControlKey)
+            hotkeyKeyCode = Int(kVK_DownArrow)
+        }
+    }
+    
     var body: some View {
         HStack(spacing: 0) {
             // Left Panel
@@ -114,6 +121,7 @@ struct MainView: View {
         .frame(minWidth: 1000, minHeight: 700)
         .onAppear {
             updateHotkey()
+            updateDefaultHotkeyIfNeeded()
         }
     }
     

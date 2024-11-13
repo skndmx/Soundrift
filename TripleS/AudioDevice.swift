@@ -1,9 +1,11 @@
 import CoreAudio
 
 struct AudioDevice: Identifiable, Hashable {
-    let id: AudioDeviceID
-    let name: String
-    let isOutput: Bool
+    var id: AudioDeviceID
+    var name: String
+    var isOutput: Bool
+    var isAirPlay: Bool
+    var isInput: Bool
     
     static func getAllDevices() -> [AudioDevice] {
         var devices: [AudioDevice] = []
@@ -33,7 +35,9 @@ struct AudioDevice: Identifiable, Hashable {
         
         for deviceID in deviceIDs {
             if let device = AudioDevice(deviceID: deviceID) {
-                devices.append(device)
+                if device.isOutput {
+                    devices.append(device)
+                }
             }
         }
         
@@ -42,6 +46,12 @@ struct AudioDevice: Identifiable, Hashable {
     
     init?(deviceID: AudioDeviceID) {
         self.id = deviceID
+        
+        // Initialize properties with default values
+        self.isOutput = false
+        self.isAirPlay = false
+        self.isInput = false
+        self.name = ""
         
         // Get device name
         var address = AudioObjectPropertyAddress(
@@ -76,20 +86,52 @@ struct AudioDevice: Identifiable, Hashable {
         var propSize: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &propSize) == noErr,
               let audioBufferList = malloc(Int(propSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
-            self.isOutput = false
             return
         }
         defer { free(audioBufferList) }
         
         guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &propSize, audioBufferList) == noErr else {
-            self.isOutput = false
             return
         }
         
         let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
         let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
         
-        self.isOutput = outputChannelCount > 0
+        // Determine if the device is an AirPlay device
+        self.isAirPlay = isAirPlayDevice(deviceID: deviceID)
+        
+        // Determine if the device is an input device
+        address.mScope = kAudioDevicePropertyScopeInput
+        var inputPropSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &inputPropSize) == noErr else {
+            return
+        }
+        self.isInput = inputPropSize > 0;
+        
+        // Consider the device as output if it has output channels or is an AirPlay device
+        self.isOutput = outputChannelCount > 0 || self.isAirPlay
+    }
+    
+    private func isAirPlayDevice(deviceID: AudioDeviceID) -> Bool {
+        // Check for transport type
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        var transportType: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        
+        let result = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &transportType)
+        
+        // Check if it's an AirPlay device by transport type
+        if result == noErr {
+            return transportType == kAudioDeviceTransportTypeAirPlay ||
+                   transportType == kAudioDeviceTransportTypeVirtual
+        }
+        
+        return false
     }
     
     var isConnected: Bool {
@@ -153,7 +195,7 @@ struct AudioDevice: Identifiable, Hashable {
     }
     
     static func == (lhs: AudioDevice, rhs: AudioDevice) -> Bool {
-        lhs.id == rhs.id
+        return lhs.id == rhs.id
     }
     
     var hasOutputChannels: Bool {
@@ -185,6 +227,8 @@ struct AudioDevice: Identifiable, Hashable {
         self.id = 0
         self.name = name
         self.isOutput = true
+        self.isAirPlay = false // Set to false for preview
+        self.isInput = false // Set to false for preview
     }
     #endif
 } 

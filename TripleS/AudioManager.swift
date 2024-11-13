@@ -31,6 +31,13 @@ class AudioManager: ObservableObject {
                 self?.selectedDevices = Set(self?.availableDevices.filter { savedDeviceIDs.contains($0.id) } ?? [])
                 self?.currentDevice = AudioDevice.getCurrentDefault()
             }
+        } else {
+            // Automatically select all available devices by default
+            DispatchQueue.main.async { [weak self] in
+                self?.availableDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+                self?.selectedDevices = Set(self?.availableDevices ?? [])
+                self?.currentDevice = AudioDevice.getCurrentDefault()
+            }
         }
         
         setupDeviceListener()
