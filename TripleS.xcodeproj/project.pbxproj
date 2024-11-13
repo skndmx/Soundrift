@@ -24,14 +24,27 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0A676E422CD553D500A29A9F /* TripleS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TripleS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0A676E422CD553D500A29A9F /* Soundrift.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Soundrift.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A676E532CD553D700A29A9F /* TripleSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TripleSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A676E5D2CD553D700A29A9F /* TripleSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TripleSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0A83EA622CDC305800995C22 /* Exceptions for "TripleS" folder in "TripleS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0A676E412CD553D500A29A9F /* TripleS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0A676E442CD553D500A29A9F /* TripleS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0A83EA622CDC305800995C22 /* Exceptions for "TripleS" folder in "TripleS" target */,
+			);
 			path = TripleS;
 			sourceTree = "<group>";
 		};
@@ -85,7 +98,7 @@
 		0A676E432CD553D500A29A9F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0A676E422CD553D500A29A9F /* TripleS.app */,
+				0A676E422CD553D500A29A9F /* Soundrift.app */,
 				0A676E532CD553D700A29A9F /* TripleSTests.xctest */,
 				0A676E5D2CD553D700A29A9F /* TripleSUITests.xctest */,
 			);
@@ -114,7 +127,7 @@
 			packageProductDependencies = (
 			);
 			productName = TripleS;
-			productReference = 0A676E422CD553D500A29A9F /* TripleS.app */;
+			productReference = 0A676E422CD553D500A29A9F /* Soundrift.app */;
 			productType = "com.apple.product-type.application";
 		};
 		0A676E522CD553D700A29A9F /* TripleSTests */ = {
@@ -396,19 +409,21 @@
 				CODE_SIGN_ENTITLEMENTS = TripleS/TripleS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"TripleS/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TripleS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Soundrift;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.4;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinjin.TripleS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Soundrift;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -423,19 +438,21 @@
 				CODE_SIGN_ENTITLEMENTS = TripleS/TripleS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"TripleS/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TripleS/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Soundrift;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.4;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinjin.TripleS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Soundrift;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 			};

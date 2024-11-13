@@ -13,7 +13,7 @@ struct MainView: View {
         HStack(spacing: 0) {
             // Left Panel
             VStack(spacing: 20) {
-                Text("Triple S")
+                Text("Soundrift")
                     .font(.largeTitle)
                     .bold()
                 
@@ -21,6 +21,19 @@ struct MainView: View {
                     .resizable()
                     .frame(width: 256, height: 256)
                     .cornerRadius(8)
+                
+                Text("How to use:")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("1. Select your audio devices from the list")
+                    Text("2. Set up a keyboard shortcut below")
+                    Text("3. Use the shortcut to quickly switch between devices")
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Divider()
                 
@@ -62,7 +75,7 @@ struct MainView: View {
                         .frame(width: 300, height: 100)
                 }
             }
-            .frame(width: 250)
+            .frame(width: 300)
             .padding()
             .background(Color.gray.opacity(0.05))
             
@@ -98,7 +111,7 @@ struct MainView: View {
             }
             .padding()
         }
-        .frame(minWidth: 800, minHeight: 500)
+        .frame(minWidth: 1000, minHeight: 700)
         .onAppear {
             updateHotkey()
         }

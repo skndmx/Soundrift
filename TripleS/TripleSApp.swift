@@ -12,20 +12,17 @@ struct TripleSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
-        WindowGroup {
-            MainView()
+        Settings {
+            EmptyView()
         }
         .commands {
-            CommandMenu("Triple S") {
-                Button("Quit Triple S") {
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit Soundrift") {
                     NSApplication.shared.terminate(nil)
                 }
                 .keyboardShortcut("q", modifiers: .command)
             }
         }
-        
-        Settings {
-            SettingsView()
-        }
     }
 }
+    

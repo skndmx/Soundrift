@@ -22,7 +22,7 @@ struct SettingsView: View {
                     if #available(macOS 13.0, *) {
                         try? SMAppService.mainApp.register()
                     } else {
-                        let success = SMLoginItemSetEnabled("com.yourapp.TripleS-LaunchHelper" as CFString, newValue)
+                        let success = SMLoginItemSetEnabled("com.yourapp.Soundrift-LaunchHelper" as CFString, newValue)
                         if !success {
                             launchAtLogin = false
                         }

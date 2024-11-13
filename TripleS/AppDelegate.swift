@@ -5,9 +5,11 @@ import Carbon
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var audioManager = AudioManager.shared
+    private var window: NSWindow?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
+        setupWindow()
         
         NotificationCenter.default.addObserver(
             self,
@@ -18,30 +20,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.button?.title = "🔊"
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        if let button = statusItem?.button {
+            let image = NSImage(named: "MenuBarIcon")
+            image?.isTemplate = true  // This makes the icon adapt to light/dark mode
+            button.image = image
+        }
         
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Current Device: None", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Show Main Window", action: #selector(showMainWindow), keyEquivalent: "m"))
-        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(showSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem.separator())
         
-        let quitMenuItem = NSMenuItem(title: "Quit Triple S", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quitMenuItem = NSMenuItem(title: "Quit Soundrift", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitMenuItem.target = NSApp
         menu.addItem(quitMenuItem)
         
         statusItem?.menu = menu
     }
     
-    @objc private func showMainWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first?.makeKeyAndOrderFront(nil)
+    private func setupWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 500),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Soundrift"
+        window.contentView = NSHostingView(rootView: MainView())
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        self.window = window
     }
     
-    @objc private func showSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    @objc private func showMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = self.window {
+            window.makeKeyAndOrderFront(nil)
+        }
     }
     
     @objc private func audioDeviceSwitched(_ notification: Notification) {
@@ -59,5 +79,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             showMainWindow()
         }
         return true
+    }
+}
+
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
     }
 } 
