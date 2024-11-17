@@ -5,14 +5,15 @@ import AppKit
 struct MainView: View {
     @StateObject private var audioManager = AudioManager.shared
     @State private var isSettingsPresented = false
-    @AppStorage("hotkeyModifiers") private var hotkeyModifiers = Int(modifierCmdKey | modifierControlKey)
-    @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode = Int(kVK_DownArrow)
+    @AppStorage("hotkeyModifiers") private var hotkeyModifiers = Int(modifierCmdKey | modifierShiftKey)
+    @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode = Int(kVK_UpArrow)
     @State private var isRecordingHotkey = false
+    @State private var localEventMonitor: Any?
     
     private func updateDefaultHotkeyIfNeeded() {
-        if hotkeyModifiers == 0 && hotkeyKeyCode == Int(kVK_DownArrow) {
-            hotkeyModifiers = Int(modifierCmdKey | modifierControlKey)
-            hotkeyKeyCode = Int(kVK_DownArrow)
+        if hotkeyModifiers == 0 || hotkeyKeyCode == 0 {
+            hotkeyModifiers = Int(modifierCmdKey | modifierShiftKey)
+            hotkeyKeyCode = Int(kVK_UpArrow)
         }
     }
     
@@ -130,10 +131,10 @@ struct MainView: View {
         let flags = UInt(hotkeyModifiers)
         
         // Add modifier symbols in a consistent order
-        if flags & UInt(controlKey) != 0 { str += "⌃" }
-        if flags & UInt(optionKey) != 0 { str += "⌥" }
-        if flags & UInt(shiftKey) != 0 { str += "⇧" }
-        if flags & UInt(cmdKey) != 0 { str += "⌘" }
+        if flags & modifierControlKey != 0 { str += "⌃" }
+        if flags & modifierOptionKey != 0 { str += "⌥" }
+        if flags & modifierShiftKey != 0 { str += "⇧" }
+        if flags & modifierCmdKey != 0 { str += "⌘" }
         
         // Convert key code to character
         switch hotkeyKeyCode {
@@ -178,9 +179,14 @@ struct MainView: View {
     private func toggleHotkeyRecording() {
         isRecordingHotkey.toggle()
         if isRecordingHotkey {
-            NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
+            localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
                 handleKeyEvent(event)
                 return nil
+            }
+        } else {
+            if let monitor = localEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                localEventMonitor = nil
             }
         }
     }
@@ -201,17 +207,14 @@ struct MainView: View {
                 return
             }
             
-            // Convert NSEvent modifiers to Carbon modifiers
-            var carbonModifiers: Int = 0
-            if currentModifiers.contains(.control) { carbonModifiers |= Int(controlKey) }
-            if currentModifiers.contains(.option) { carbonModifiers |= Int(optionKey) }
-            if currentModifiers.contains(.shift) { carbonModifiers |= Int(shiftKey) }
-            if currentModifiers.contains(.command) { carbonModifiers |= Int(cmdKey) }
-            
-            print("Carbon modifiers: \(carbonModifiers)")
-            
-            hotkeyModifiers = carbonModifiers
+            hotkeyModifiers = Int(currentModifiers.rawValue)
             hotkeyKeyCode = Int(event.keyCode)
+            
+            // Clean up the monitor
+            if let monitor = localEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                localEventMonitor = nil
+            }
             isRecordingHotkey = false
             
             // Update the hotkey immediately

@@ -16,6 +16,21 @@ struct TripleSApp: App {
             EmptyView()
         }
         .commands {
+            // Standard window commands
+            CommandGroup(replacing: .windowList) {
+                Button("Close") {
+                    NSApplication.shared.keyWindow?.close()
+                }
+                .keyboardShortcut("w", modifiers: .command)
+            }
+            
+            // Standard file menu commands
+            CommandGroup(replacing: .newItem) { }
+            
+            // Standard edit menu commands
+            TextEditingCommands()
+            
+            // App termination commands
             CommandGroup(replacing: .appTermination) {
                 Button("Quit Soundrift") {
                     NSApplication.shared.terminate(nil)

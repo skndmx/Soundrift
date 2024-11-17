@@ -15,12 +15,12 @@ class HotkeyManager {
         print("KeyCode: \(keyCode)")
         print("Raw Modifiers: \(modifiers)")
         
-        // Convert to Carbon modifier flags if needed
-        var carbonModifiers = modifiers
-        if carbonModifiers == 0 {
-            // If no modifiers are set, default to Command + Control
-            carbonModifiers = Int(cmdKey | controlKey)
-        }
+        // Convert AppKit modifiers to Carbon modifiers
+        var carbonModifiers = 0
+        if modifiers & Int(NSEvent.ModifierFlags.command.rawValue) != 0 { carbonModifiers |= cmdKey }
+        if modifiers & Int(NSEvent.ModifierFlags.control.rawValue) != 0 { carbonModifiers |= controlKey }
+        if modifiers & Int(NSEvent.ModifierFlags.option.rawValue) != 0 { carbonModifiers |= optionKey }
+        if modifiers & Int(NSEvent.ModifierFlags.shift.rawValue) != 0 { carbonModifiers |= shiftKey }
         
         print("Carbon Modifiers: \(carbonModifiers)")
         

@@ -53,6 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         window.isReleasedWhenClosed = false
         window.delegate = self
+        window.standardWindowButton(.closeButton)?.isEnabled = true
+        window.standardWindowButton(.miniaturizeButton)?.isEnabled = true
+        window.standardWindowButton(.zoomButton)?.isEnabled = true
         self.window = window
     }
     
@@ -85,5 +88,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 extension AppDelegate: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+    }
+    
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        return true
     }
 } 
