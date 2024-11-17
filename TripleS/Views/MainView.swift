@@ -10,6 +10,10 @@ struct MainView: View {
     @State private var isRecordingHotkey = false
     @State private var localEventMonitor: Any?
     
+    private var sortedDevices: [AudioDevice] {
+        audioManager.availableDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+    
     private func updateDefaultHotkeyIfNeeded() {
         if hotkeyModifiers == 0 || hotkeyKeyCode == 0 {
             hotkeyModifiers = Int(modifierCmdKey | modifierShiftKey)
@@ -111,7 +115,7 @@ struct MainView: View {
                             .font(.headline)
                             .padding(.horizontal)
                         
-                        ForEach(audioManager.availableDevices) { device in
+                        ForEach(sortedDevices) { device in
                             DeviceRow(device: device)
                         }
                     }

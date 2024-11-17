@@ -98,32 +98,23 @@ class AudioManager: ObservableObject {
     }
     
     func refreshAudioDevices() {
-        let newDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+        let unsortedDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+        let sortedDevices = unsortedDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         
-        // Find newly connected devices that aren't in the current selection
-        let newlyConnectedDevices = Set(newDevices).subtracting(availableDevices)
+        availableDevices = sortedDevices
         
-        // Update available devices
-        availableDevices = newDevices
-        
-        // Automatically select newly connected devices
+        let newlyConnectedDevices = Set(sortedDevices).subtracting(selectedDevices)
         selectedDevices.formUnion(newlyConnectedDevices)
         
-        // Save the updated selection
         saveSelectedDevices()
-        
         currentDevice = AudioDevice.getCurrentDefault()
     }
     
     func switchToNextDevice() {
-        print("=== Device Switch Attempt ===")
-        print("Selected devices count: \(selectedDevices.count)")
-        selectedDevices.forEach { device in
-            print("Selected device: \(device.name) (connected: \(device.isConnected))")
-        }
-        
-        let connectedDevices = Array(selectedDevices).filter { $0.isConnected }
-        print("Connected devices count: \(connectedDevices.count)")
+        // Get connected devices and ensure they're sorted
+        let connectedDevices = selectedDevices
+            .filter { $0.isConnected }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         
         guard !connectedDevices.isEmpty else {
             print("Error: No connected devices available")
@@ -131,14 +122,10 @@ class AudioManager: ObservableObject {
         }
         
         let currentIndex = connectedDevices.firstIndex { $0.id == currentDevice?.id } ?? -1
-        print("Current device index: \(currentIndex)")
-        
         let nextIndex = (currentIndex + 1) % connectedDevices.count
         let nextDevice = connectedDevices[nextIndex]
-        print("Attempting to switch to: \(nextDevice.name)")
         
         if nextDevice.setAsDefault() {
-            print("Successfully switched to: \(nextDevice.name)")
             currentDevice = nextDevice
             NotificationCenter.default.post(name: NSNotification.Name("AudioDeviceSwitched"), object: nextDevice)
             
@@ -158,8 +145,6 @@ class AudioManager: ObservableObject {
                     print("Error showing notification: \(error)")
                 }
             }
-        } else {
-            print("Failed to switch to: \(nextDevice.name)")
         }
     }
     
