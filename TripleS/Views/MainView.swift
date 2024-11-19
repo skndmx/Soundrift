@@ -59,66 +59,8 @@ struct MainView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                
+                                
                 Divider()
-                
-                // Hotkey Settings
-                VStack(spacing: 12) {
-                    Text("Quick Switch Shortcut")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text(getHotkeyString())
-                            .padding(8)
-                            .frame(minWidth: 120)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.gray.opacity(0.1))
-                            )
-                        
-                        Button(isRecordingHotkey ? "Press any key..." : "Record") {
-                            toggleHotkeyRecording()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    
-                    Text("Click 'Record' and press your desired key combination")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.gray.opacity(0.1)))
-                
-                Divider()
-                
-                // Input Hotkey Settings
-                VStack(spacing: 12) {
-                    Text("Input Switch Shortcut")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text(getInputHotkeyString())
-                            .padding(8)
-                            .frame(minWidth: 120)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.gray.opacity(0.1))
-                            )
-                        
-                        Button(isRecordingInputHotkey ? "Press any key..." : "Record") {
-                            toggleInputHotkeyRecording()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    
-                    Text("Click 'Record' and press your desired key combination")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.gray.opacity(0.1)))
                 
                 Spacer()
                 
@@ -164,6 +106,33 @@ struct MainView: View {
                                 }
                             }
                         }
+
+                        VStack(spacing: 12) {
+                    Text("Quick Switch Shortcut")
+                        .font(.headline)
+                    
+                    HStack {
+                        Text(getHotkeyString())
+                            .padding(8)
+                            .frame(minWidth: 120)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.gray.opacity(0.1))
+                            )
+                        
+                        Button(isRecordingHotkey ? "Press any key..." : "Record") {
+                            toggleHotkeyRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    
+                    Text("Click 'Record' and press your desired key combination")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                        .background(RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.gray.opacity(0.1)))
                     }
                     .tabItem {
                         Label("Output", systemImage: "speaker.wave.3")
@@ -196,6 +165,33 @@ struct MainView: View {
                                 }
                             }
                         }
+                        // Input Hotkey Settings
+                VStack(spacing: 12) {
+                    Text("Input Switch Shortcut")
+                        .font(.headline)
+                    
+                    HStack {
+                        Text(getInputHotkeyString())
+                            .padding(8)
+                            .frame(minWidth: 120)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.gray.opacity(0.1))
+                            )
+                        
+                        Button(isRecordingInputHotkey ? "Press any key..." : "Record") {
+                            toggleInputHotkeyRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    
+                    Text("Click 'Record' and press your desired key combination")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                        .background(RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.gray.opacity(0.1)))
                     }
                     .tabItem {
                         Label("Input", systemImage: "mic")
