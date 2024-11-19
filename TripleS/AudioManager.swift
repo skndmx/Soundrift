@@ -101,10 +101,21 @@ class AudioManager: ObservableObject {
         let unsortedDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
         let sortedDevices = unsortedDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         
+        // Keep track of previously selected device IDs
+        let selectedDeviceIDs = Set(selectedDevices.map { $0.id })
+        
+        // Keep track of previously known device IDs
+        let previousDeviceIDs = Set(availableDevices.map { $0.id })
+        
         availableDevices = sortedDevices
         
-        let newlyConnectedDevices = Set(sortedDevices).subtracting(selectedDevices)
-        selectedDevices.formUnion(newlyConnectedDevices)
+        // Find newly added devices
+        let newDeviceIDs = Set(sortedDevices.map { $0.id }).subtracting(previousDeviceIDs)
+        
+        // Update selectedDevices to include both previously selected devices and new devices
+        selectedDevices = Set(sortedDevices.filter { device in 
+            selectedDeviceIDs.contains(device.id) || newDeviceIDs.contains(device.id)
+        })
         
         saveSelectedDevices()
         currentDevice = AudioDevice.getCurrentDefault()

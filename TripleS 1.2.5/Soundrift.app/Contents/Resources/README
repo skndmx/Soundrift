@@ -3,4 +3,3 @@ defaults delete com.kevinjin.TripleS
 Delete /Users/kevin/Library/Containers/TripeS
 
 create-dmg 'soundrift.app'
-
