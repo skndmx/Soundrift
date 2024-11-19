@@ -6,12 +6,14 @@ class HotkeyManager {
     
     private var eventHandler: EventHandlerRef?
     private var hotKeyRef: EventHotKeyRef?
+    private var inputHotKeyRef: EventHotKeyRef?
     private var callback: (() -> Void)?
+    private var inputCallback: (() -> Void)?
     
     private init() {}
     
     func register(keyCode: Int, modifiers: Int, callback: @escaping () -> Void) {
-        print("=== Registering Hotkey ===")
+        print("=== Registering Output Hotkey ===")
         print("KeyCode: \(keyCode)")
         print("Raw Modifiers: \(modifiers)")
         
@@ -29,31 +31,10 @@ class HotkeyManager {
         
         self.callback = callback
         
-        var eventType = EventTypeSpec(
-            eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed)
-        )
-        
-        // Store callback
-        let userData = UnsafeMutableRawPointer(Unmanaged.passRetained(CallbackWrapper(callback)).toOpaque())
-        
-        // Install event handler
-        InstallEventHandler(
-            GetApplicationEventTarget(),
-            { (_, event, userData) -> OSStatus in
-                print("Hotkey detected!")
-                let wrapper = Unmanaged<CallbackWrapper>.fromOpaque(userData!).takeUnretainedValue()
-                wrapper.callback()
-                return noErr
-            },
-            1,
-            &eventType,
-            userData,
-            &eventHandler
-        )
+        setupEventHandler()
         
         // Register hotkey
-        let gMyHotKeyID = EventHotKeyID(signature: OSType("TSSS".fourCharCodeValue), id: 1)
+        let gMyHotKeyID = EventHotKeyID(signature: OSType("TSSO".fourCharCodeValue), id: 1)
         
         let registerStatus = RegisterEventHotKey(
             UInt32(keyCode),
@@ -64,7 +45,37 @@ class HotkeyManager {
             &hotKeyRef
         )
         
-        print("Hotkey registration final status: \(registerStatus)")
+        print("Output hotkey registration status: \(registerStatus)")
+    }
+    
+    func registerInput(keyCode: Int, modifiers: Int, callback: @escaping () -> Void) {
+        print("=== Registering Input Hotkey ===")
+        print("KeyCode: \(keyCode)")
+        print("Raw Modifiers: \(modifiers)")
+        
+        var carbonModifiers = 0
+        if modifiers & Int(NSEvent.ModifierFlags.command.rawValue) != 0 { carbonModifiers |= cmdKey }
+        if modifiers & Int(NSEvent.ModifierFlags.control.rawValue) != 0 { carbonModifiers |= controlKey }
+        if modifiers & Int(NSEvent.ModifierFlags.option.rawValue) != 0 { carbonModifiers |= optionKey }
+        if modifiers & Int(NSEvent.ModifierFlags.shift.rawValue) != 0 { carbonModifiers |= shiftKey }
+        
+        unregisterInput()
+        
+        self.inputCallback = callback
+        
+        // Register input hotkey
+        let gMyHotKeyID = EventHotKeyID(signature: OSType("TSSI".fourCharCodeValue), id: 2)
+        
+        let registerStatus = RegisterEventHotKey(
+            UInt32(keyCode),
+            UInt32(carbonModifiers),
+            gMyHotKeyID,
+            GetApplicationEventTarget(),
+            OptionBits(0),
+            &inputHotKeyRef
+        )
+        
+        print("Input hotkey registration status: \(registerStatus)")
     }
     
     func unregister() {
@@ -72,23 +83,58 @@ class HotkeyManager {
             UnregisterEventHotKey(hotKeyRef)
             self.hotKeyRef = nil
         }
-        
-        if let eventHandler = eventHandler {
-            RemoveEventHandler(eventHandler)
-            self.eventHandler = nil
+    }
+    
+    func unregisterInput() {
+        if let hotKeyRef = inputHotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.inputHotKeyRef = nil
         }
     }
     
-    private class CallbackWrapper {
-        let callback: () -> Void
+    private func setupEventHandler() {
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
         
-        init(_ callback: @escaping () -> Void) {
-            self.callback = callback
-        }
+        let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { (_, event, userData) -> OSStatus in
+                print("Hotkey detected!")
+                let manager = Unmanaged<HotkeyManager>.fromOpaque(userData!).takeUnretainedValue()
+                
+                var hotKeyID = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    UInt32(kEventParamDirectObject),
+                    UInt32(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotKeyID
+                )
+                
+                if status == noErr {
+                    if hotKeyID.signature == OSType("TSSO".fourCharCodeValue) {
+                        manager.callback?()
+                    } else if hotKeyID.signature == OSType("TSSI".fourCharCodeValue) {
+                        manager.inputCallback?()
+                    }
+                }
+                
+                return noErr
+            },
+            1,
+            &eventType,
+            selfPtr,
+            &eventHandler
+        )
     }
 }
 
-// Helper extension to convert string to fourCharCode
 extension String {
     var fourCharCodeValue: UInt32 {
         var result: UInt32 = 0

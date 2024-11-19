@@ -35,7 +35,7 @@ struct AudioDevice: Identifiable, Hashable {
         
         for deviceID in deviceIDs {
             if let device = AudioDevice(deviceID: deviceID) {
-                if device.isOutput {
+                if device.isInput || device.isOutput {
                     devices.append(device)
                 }
             }
@@ -101,12 +101,24 @@ struct AudioDevice: Identifiable, Hashable {
         self.isAirPlay = isAirPlayDevice(deviceID: deviceID)
         
         // Determine if the device is an input device
+        address.mSelector = kAudioDevicePropertyStreamConfiguration
         address.mScope = kAudioDevicePropertyScopeInput
+        
         var inputPropSize: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &inputPropSize) == noErr else {
+        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &inputPropSize) == noErr,
+              let inputAudioBufferList = malloc(Int(inputPropSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
             return
         }
-        self.isInput = inputPropSize > 0;
+        defer { free(inputAudioBufferList) }
+        
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &inputPropSize, inputAudioBufferList) == noErr else {
+            return
+        }
+        
+        let inputBufferList = UnsafeMutableAudioBufferListPointer(inputAudioBufferList)
+        let inputChannelCount = inputBufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
+        
+        self.isInput = inputChannelCount > 0
         
         // Consider the device as output if it has output channels or is an AirPlay device
         self.isOutput = outputChannelCount > 0 || self.isAirPlay
@@ -231,4 +243,45 @@ struct AudioDevice: Identifiable, Hashable {
         self.isInput = false // Set to false for preview
     }
     #endif
+    
+    func setAsDefaultInput() -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        var deviceIDCopy = self.id
+        
+        return AudioObjectSetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            UInt32(MemoryLayout<AudioDeviceID>.size),
+            &deviceIDCopy
+        ) == noErr
+    }
+    
+    static func getCurrentDefaultInput() -> AudioDevice? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        var deviceID: AudioDeviceID = 0
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        
+        let result = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &size,
+            &deviceID
+        )
+        
+        return result == noErr ? AudioDevice(deviceID: deviceID) : nil
+    }
 } 

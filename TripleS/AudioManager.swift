@@ -8,11 +8,15 @@ class AudioManager: ObservableObject {
     @Published var availableDevices: [AudioDevice] = []
     @Published var selectedDevices: Set<AudioDevice> = []
     @Published var currentDevice: AudioDevice?
+    @Published var selectedInputDevices: Set<AudioDevice> = []
+    @Published var currentInputDevice: AudioDevice?
+    @Published var availableInputDevices: [AudioDevice] = []
     
     private var deviceListener: AudioObjectPropertyListenerBlock?
     private var defaultDeviceListener: AudioObjectPropertyListenerBlock?
     
     private let selectedDevicesKey = "SelectedDevices"
+    private let selectedInputDevicesKey = "SelectedInputDevices"
     
     private init() {
         // Request notification permission
@@ -40,9 +44,39 @@ class AudioManager: ObservableObject {
             }
         }
         
+        if let savedInputDeviceIDs = UserDefaults.standard.array(forKey: selectedInputDevicesKey) as? [AudioDeviceID] {
+            DispatchQueue.main.async { [weak self] in
+                let inputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+                self?.selectedInputDevices = Set(inputDevices.filter { savedInputDeviceIDs.contains($0.id) })
+                self?.currentInputDevice = AudioDevice.getCurrentDefaultInput()
+            }
+        } else {
+            // Automatically select all available input devices by default
+            DispatchQueue.main.async { [weak self] in
+                let inputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+                self?.selectedInputDevices = Set(inputDevices)
+                self?.currentInputDevice = AudioDevice.getCurrentDefaultInput()
+            }
+        }
+        
         setupDeviceListener()
         setupDefaultDeviceListener()
         refreshAudioDevices()
+        
+        // Add after loading output devices
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let inputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+            self.availableInputDevices = inputDevices
+            if let savedInputDeviceIDs = UserDefaults.standard.array(forKey: selectedInputDevicesKey) as? [AudioDeviceID] {
+                self.selectedInputDevices = Set(inputDevices.filter { savedInputDeviceIDs.contains($0.id) })
+            } else {
+                self.selectedInputDevices = Set(inputDevices)
+            }
+            self.currentInputDevice = AudioDevice.getCurrentDefaultInput()
+        }
+        
+        refreshInputDevices()
     }
     
     private func setupDeviceListener() {
@@ -58,6 +92,7 @@ class AudioManager: ObservableObject {
         ) in
             DispatchQueue.main.async {
                 self?.refreshAudioDevices()
+                self?.refreshInputDevices()
             }
         }
         
@@ -72,8 +107,16 @@ class AudioManager: ObservableObject {
     }
     
     private func setupDefaultDeviceListener() {
-        var address = AudioObjectPropertyAddress(
+        // Output device monitoring
+        var outputAddress = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        // Input device monitoring
+        var inputAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
@@ -84,14 +127,24 @@ class AudioManager: ObservableObject {
         ) in
             DispatchQueue.main.async {
                 self?.currentDevice = AudioDevice.getCurrentDefault()
+                self?.currentInputDevice = AudioDevice.getCurrentDefaultInput()
             }
         }
         
         guard let listener = defaultDeviceListener else { return }
         
+        // Add listener for output device changes
         _ = AudioObjectAddPropertyListenerBlock(
             AudioObjectID(kAudioObjectSystemObject),
-            &address,
+            &outputAddress,
+            nil,
+            listener
+        )
+        
+        // Add listener for input device changes
+        _ = AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &inputAddress,
             nil,
             listener
         )
@@ -195,5 +248,29 @@ class AudioManager: ObservableObject {
     private func saveSelectedDevices() {
         let deviceIDs = selectedDevices.map { $0.id }
         UserDefaults.standard.set(deviceIDs, forKey: selectedDevicesKey)
+    }
+    
+    func refreshInputDevices() {
+        let unsortedDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+        let sortedDevices = unsortedDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        
+        // Keep track of previously selected device IDs
+        let selectedDeviceIDs = Set(selectedInputDevices.map { $0.id })
+        
+        // Keep track of previously known device IDs
+        let previousDeviceIDs = Set(availableInputDevices.map { $0.id })
+        
+        availableInputDevices = sortedDevices
+        
+        // Find newly added devices
+        let newDeviceIDs = Set(sortedDevices.map { $0.id }).subtracting(previousDeviceIDs)
+        
+        // Update selectedInputDevices to include both previously selected devices and new devices
+        selectedInputDevices = Set(sortedDevices.filter { device in 
+            selectedDeviceIDs.contains(device.id) || newDeviceIDs.contains(device.id)
+        })
+        
+        UserDefaults.standard.set(Array(selectedInputDevices).map { $0.id }, forKey: selectedInputDevicesKey)
+        currentInputDevice = AudioDevice.getCurrentDefaultInput()
     }
 } 
