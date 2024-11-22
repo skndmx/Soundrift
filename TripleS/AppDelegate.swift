@@ -93,4 +93,4 @@ extension AppDelegate: NSWindowDelegate {
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         return true
     }
-} 
+}  

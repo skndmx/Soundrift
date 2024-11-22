@@ -44,7 +44,7 @@ struct MainView: View {
                 
                 Image("AppIcon2")
                     .resizable()
-                    .frame(width: 256, height: 256)
+                    .frame(width: 200, height: 200)
                     .cornerRadius(8)
                 
                 Text("How to use:")
@@ -77,128 +77,133 @@ struct MainView: View {
             .background(Color.gray.opacity(0.05))
             
             // Right Panel
-            VStack(spacing: 20) {
-                TabView {
-                    // Output Devices Tab
-                    VStack(spacing: 20) {
-                        if let currentDevice = audioManager.currentDevice {
-                            HStack {
-                                Image(systemName: "speaker.wave.3")
-                                    .font(.title)
-                                Text("Current Output:")
-                                    .font(.headline)
-                                Text(currentDevice.name)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding()
-                            .background(RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.gray.opacity(0.1)))
-                        }
-                        
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Available Output Devices")
-                                    .font(.headline)
-                                    .padding(.horizontal)
-                                
-                                ForEach(sortedDevices) { device in
-                                    DeviceRow(device: device)
+            VStack(spacing: 0) {
+                CustomTabView(content: [
+                    (
+                        title: "Output",
+                        icon: "speaker.wave.3",
+                        view: AnyView(
+                            ScrollView {
+                                VStack(spacing: 20) {
+                                    if let currentDevice = audioManager.currentDevice {
+                                        HStack {
+                                            Image(systemName: "speaker.wave.3")
+                                                .font(.title)
+                                            Text("Current Output:")
+                                                .font(.headline)
+                                            Text(currentDevice.name)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .padding()
+                                        .background(RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.gray.opacity(0.1)))
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Available Output Devices")
+                                            .font(.headline)
+                                            .padding(.horizontal)
+                                        
+                                        ForEach(sortedDevices) { device in
+                                            DeviceRow(device: device)
+                                        }
+                                    }
+                                    
+                                    VStack(spacing: 12) {
+                                        Text("Quick Switch Shortcut")
+                                            .font(.headline)
+                                        
+                                        HStack {
+                                            Text(getHotkeyString())
+                                                .padding(8)
+                                                .frame(minWidth: 120)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 6)
+                                                        .fill(Color.gray.opacity(0.1))
+                                                )
+                                            
+                                            Button(isRecordingHotkey ? "Press any key..." : "Record") {
+                                                toggleHotkeyRecording()
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                        }
+                                        
+                                        Text("Click 'Record' and press your desired key combination")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding()
+                                    .background(RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.gray.opacity(0.1)))
                                 }
+                                .padding()
                             }
-                        }
-
-                        VStack(spacing: 12) {
-                    Text("Quick Switch Shortcut")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text(getHotkeyString())
-                            .padding(8)
-                            .frame(minWidth: 120)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.gray.opacity(0.1))
-                            )
-                        
-                        Button(isRecordingHotkey ? "Press any key..." : "Record") {
-                            toggleHotkeyRecording()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    
-                    Text("Click 'Record' and press your desired key combination")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                        .background(RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.gray.opacity(0.1)))
-                    }
-                    .tabItem {
-                        Label("Output", systemImage: "speaker.wave.3")
-                    }
-                    
-                    // Input Devices Tab
-                    VStack(spacing: 20) {
-                        if let currentInput = audioManager.currentInputDevice {
-                            HStack {
-                                Image(systemName: "mic")
-                                    .font(.title)
-                                Text("Current Input:")
-                                    .font(.headline)
-                                Text(currentInput.name)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding()
-                            .background(RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.gray.opacity(0.1)))
-                        }
-                        
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Available Input Devices")
-                                    .font(.headline)
-                                    .padding(.horizontal)
-                                
-                                ForEach(sortedInputDevices) { device in
-                                    InputDeviceRow(device: device)
+                        )
+                    ),
+                    (
+                        title: "Input",
+                        icon: "mic",
+                        view: AnyView(
+                            ScrollView {
+                                VStack(spacing: 20) {
+                                    if let currentInput = audioManager.currentInputDevice {
+                                        HStack {
+                                            Image(systemName: "mic")
+                                                .font(.title)
+                                            Text("Current Input:")
+                                                .font(.headline)
+                                            Text(currentInput.name)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .padding()
+                                        .background(RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.gray.opacity(0.1)))
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Available Input Devices")
+                                            .font(.headline)
+                                            .padding(.horizontal)
+                                        
+                                        ForEach(sortedInputDevices) { device in
+                                            InputDeviceRow(device: device)
+                                        }
+                                    }
+                                    
+                                    VStack(spacing: 12) {
+                                        Text("Input Switch Shortcut")
+                                            .font(.headline)
+                                        
+                                        HStack {
+                                            Text(getInputHotkeyString())
+                                                .padding(8)
+                                                .frame(minWidth: 120)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 6)
+                                                        .fill(Color.gray.opacity(0.1))
+                                                )
+                                            
+                                            Button(isRecordingInputHotkey ? "Press any key..." : "Record") {
+                                                toggleInputHotkeyRecording()
+                                            }
+                                            .buttonStyle(.borderedProminent)
+                                        }
+                                        
+                                        Text("Click 'Record' and press your desired key combination")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding()
+                                    .background(RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.gray.opacity(0.1)))
                                 }
+                                .padding()
                             }
-                        }
-                        // Input Hotkey Settings
-                VStack(spacing: 12) {
-                    Text("Input Switch Shortcut")
-                        .font(.headline)
-                    
-                    HStack {
-                        Text(getInputHotkeyString())
-                            .padding(8)
-                            .frame(minWidth: 120)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.gray.opacity(0.1))
-                            )
-                        
-                        Button(isRecordingInputHotkey ? "Press any key..." : "Record") {
-                            toggleInputHotkeyRecording()
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    
-                    Text("Click 'Record' and press your desired key combination")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                        .background(RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.gray.opacity(0.1)))
-                    }
-                    .tabItem {
-                        Label("Input", systemImage: "mic")
-                    }
-                }
+                        )
+                    )
+                ])
             }
-            .padding()
+            .background(Color("SettingsV1"))
         }
         .frame(minWidth: 1000, minHeight: 700)
         .onAppear {
