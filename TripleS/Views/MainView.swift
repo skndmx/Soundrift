@@ -48,7 +48,7 @@ struct MainView: View {
                     .cornerRadius(8)
                 
                 VStack(spacing: 4) {
-                    Text("Version 1.2.9")
+                    Text("Version 1.2.10")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
@@ -450,6 +450,24 @@ struct MainView: View {
         ) {
             DeviceSwitchManager.shared.switchToNextDevice(type: .input)
         }
+    }
+    
+    private func toggleDevice(_ device: AudioDevice) {
+        if audioManager.selectedDevices.contains(device) {
+            audioManager.selectedDevices.remove(device)
+        } else {
+            audioManager.selectedDevices.insert(device)
+        }
+        audioManager.saveSelectedDevices()
+    }
+    
+    private func toggleInputDevice(_ device: AudioDevice) {
+        if audioManager.selectedInputDevices.contains(device) {
+            audioManager.selectedInputDevices.remove(device)
+        } else {
+            audioManager.selectedInputDevices.insert(device)
+        }
+        audioManager.saveSelectedInputDevices()
     }
 }
 

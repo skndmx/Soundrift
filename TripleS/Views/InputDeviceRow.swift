@@ -38,10 +38,7 @@ struct InputDeviceRow: View {
             } else {
                 audioManager.selectedInputDevices.insert(device)
             }
-            UserDefaults.standard.set(
-                Array(audioManager.selectedInputDevices).map { $0.id },
-                forKey: "SelectedInputDevices"
-            )
+            audioManager.saveSelectedInputDevices()
         }
         .padding(.horizontal)
     }

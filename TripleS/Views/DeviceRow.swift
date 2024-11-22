@@ -21,7 +21,7 @@ struct DeviceRow: View {
             Spacer()
             
             if device.id == audioManager.currentDevice?.id {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "speaker.wave.3.fill")
                     .foregroundColor(.blue)
             }
         }
@@ -38,10 +38,7 @@ struct DeviceRow: View {
             } else {
                 audioManager.selectedDevices.insert(device)
             }
-            UserDefaults.standard.set(
-                Array(audioManager.selectedDevices).map { $0.id },
-                forKey: "SelectedDevices"
-            )
+            audioManager.saveSelectedDevices()
         }
         .padding(.horizontal)
     }
