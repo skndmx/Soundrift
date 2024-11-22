@@ -44,9 +44,22 @@ struct MainView: View {
                 
                 Image("AppIcon2")
                     .resizable()
-                    .frame(width: 200, height: 200)
+                    .frame(width: 150, height: 150)
                     .cornerRadius(8)
                 
+                VStack(spacing: 4) {
+                    Text("Version 1.2.7")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Created by Kevin Jin")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Divider()
+                
+                Spacer()
                 Text("How to use:")
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,22 +72,16 @@ struct MainView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                Divider()
-                
-                Spacer()
-                
-                Button(action: { isSettingsPresented.toggle() }) {
-                    Label("Settings", systemImage: "gear")
-                }
-                .sheet(isPresented: $isSettingsPresented) {
-                    SettingsView()
-                        .frame(width: 300, height: 100)
-                }
+
             }
-            .frame(width: 300)
+            .frame(width: 200)
             .padding()
-            .background(Color.gray.opacity(0.05))
+            .background(Color("SettingsV1"))
+            
+            // Divider line
+            Rectangle()
+                .fill(Color.gray.opacity(1))
+                .frame(width: 1)
             
             // Right Panel
             VStack(spacing: 0) {
@@ -200,12 +207,23 @@ struct MainView: View {
                                 .padding()
                             }
                         )
+                    ),
+                    (
+                        title: "Settings",
+                        icon: "gear",
+                        view: AnyView(
+                            VStack {
+                                SettingsView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .padding()
+                            }
+                        )
                     )
                 ])
             }
-            .background(Color("SettingsV1"))
+            .background(Color("MainBackground"))
         }
-        .frame(minWidth: 1000, minHeight: 700)
+        .frame(minWidth: 900, minHeight: 800)
         .onAppear {
             updateDefaultHotkeyIfNeeded()
         }
@@ -437,5 +455,5 @@ struct MainView: View {
 
 #Preview {
     MainView()
-        .frame(width: 800, height: 600)
+        .frame(width: 600, height: 1200)
 } 

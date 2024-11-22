@@ -3,19 +3,11 @@ import ServiceManagement
 
 struct SettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text("Settings")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-            }
-            .padding(.bottom)
+            Text("Settings")
+                .font(.headline)
             
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) { newValue in
@@ -28,9 +20,10 @@ struct SettingsView: View {
                         }
                     }
                 }
+            
+            Spacer()
         }
         .padding()
-        .frame(width: 300, height: 100)
     }
 }
 

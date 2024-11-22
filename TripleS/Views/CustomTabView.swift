@@ -16,6 +16,7 @@ struct CustomTabView: View {
     
     private var tabBar: some View {
         HStack(spacing: 0) {
+            Spacer()
             ForEach(0..<titles.count, id: \.self) { index in
                 VStack {
                     Image(systemName: self.icons[index])
@@ -39,9 +40,8 @@ struct CustomTabView: View {
                     }
                 }
             }
+            Spacer()
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
         .background(Color("SettingsV1"))
     }
     
@@ -52,7 +52,7 @@ struct CustomTabView: View {
             tabViews[selection]
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.white.opacity(0.1))
+                .background(Color("MainBackground"))
         }
     }
 } 
