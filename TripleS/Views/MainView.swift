@@ -48,7 +48,7 @@ struct MainView: View {
                     .cornerRadius(8)
                 
                 VStack(spacing: 4) {
-                    Text("Version 1.2.7")
+                    Text("Version 1.2.8")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
