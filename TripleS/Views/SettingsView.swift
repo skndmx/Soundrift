@@ -12,7 +12,11 @@ struct SettingsView: View {
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) { newValue in
                     if #available(macOS 13.0, *) {
-                        try? SMAppService.mainApp.register()
+                        if newValue {
+                            try? SMAppService.mainApp.register()
+                        } else {
+                            try? SMAppService.mainApp.unregister()
+                        }
                     } else {
                         let success = SMLoginItemSetEnabled("com.yourapp.Soundrift-LaunchHelper" as CFString, newValue)
                         if !success {
