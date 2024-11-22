@@ -5,33 +5,17 @@ struct InputDeviceRow: View {
     let device: AudioDevice
     
     var body: some View {
-        HStack {
-            Toggle(isOn: Binding(
-                get: { audioManager.selectedInputDevices.contains(device) },
-                set: { isSelected in
-                    if isSelected {
-                        audioManager.selectedInputDevices.insert(device)
-                    } else {
-                        audioManager.selectedInputDevices.remove(device)
-                    }
-                    UserDefaults.standard.set(
-                        Array(audioManager.selectedInputDevices).map { $0.id },
-                        forKey: "SelectedInputDevices"
-                    )
-                }
-            )) {
-                HStack {
-                    Image(systemName: device.isConnected ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(device.isConnected ? .green : .gray)
-                    
-                    VStack(alignment: .leading) {
-                        Text(device.name)
-                            .fontWeight(.medium)
-                        Text(device.isConnected ? "Connected" : "Disconnected")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+        HStack(spacing: 16) {
+            Image(systemName: audioManager.selectedInputDevices.contains(device) ? "checkmark.square.fill" : "square")
+                .foregroundColor(audioManager.selectedInputDevices.contains(device) ? Color.cyan : Color.gray)
+                .font(.system(size: 16))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(device.name)
+                    .fontWeight(.medium)
+                Text(device.isConnected ? "Connected" : "Disconnected")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
@@ -41,9 +25,24 @@ struct InputDeviceRow: View {
                     .foregroundColor(.blue)
             }
         }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 8)
-            .fill(Color.gray.opacity(0.05)))
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.05))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if audioManager.selectedInputDevices.contains(device) {
+                audioManager.selectedInputDevices.remove(device)
+            } else {
+                audioManager.selectedInputDevices.insert(device)
+            }
+            UserDefaults.standard.set(
+                Array(audioManager.selectedInputDevices).map { $0.id },
+                forKey: "SelectedInputDevices"
+            )
+        }
         .padding(.horizontal)
     }
 } 
