@@ -46,15 +46,15 @@ class AudioManager: ObservableObject {
         
         if let savedInputDeviceIDs = UserDefaults.standard.array(forKey: selectedInputDevicesKey) as? [AudioDeviceID] {
             DispatchQueue.main.async { [weak self] in
-                let inputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
-                self?.selectedInputDevices = Set(inputDevices.filter { savedInputDeviceIDs.contains($0.id) })
+                self?.availableInputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+                self?.selectedInputDevices = Set(self?.availableInputDevices.filter { savedInputDeviceIDs.contains($0.id) } ?? [])
                 self?.currentInputDevice = AudioDevice.getCurrentDefaultInput()
             }
         } else {
             // Automatically select all available input devices by default
             DispatchQueue.main.async { [weak self] in
-                let inputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
-                self?.selectedInputDevices = Set(inputDevices)
+                self?.availableInputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+                self?.selectedInputDevices = Set(self?.availableInputDevices ?? [])
                 self?.currentInputDevice = AudioDevice.getCurrentDefaultInput()
             }
         }
@@ -272,5 +272,10 @@ class AudioManager: ObservableObject {
         
         UserDefaults.standard.set(Array(selectedInputDevices).map { $0.id }, forKey: selectedInputDevicesKey)
         currentInputDevice = AudioDevice.getCurrentDefaultInput()
+    }
+    
+    private func saveSelectedInputDevices() {
+        let deviceIDs = selectedInputDevices.map { $0.id }
+        UserDefaults.standard.set(deviceIDs, forKey: selectedInputDevicesKey)
     }
 } 
