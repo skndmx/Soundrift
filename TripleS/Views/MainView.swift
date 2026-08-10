@@ -15,12 +15,23 @@ struct MainView: View {
     @State private var outputHotkeyError: String?
     @State private var inputHotkeyError: String?
 
-    private var sortedDevices: [AudioDevice] {
-        audioManager.availableDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    private var visibleOutputDevices: [AudioDevice] {
+        audioManager.visibleOutputDevices
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    private var sortedInputDevices: [AudioDevice] {
-        audioManager.availableInputDevices
+    private var hiddenOutputDevices: [AudioDevice] {
+        audioManager.hiddenOutputDevices
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var visibleInputDevices: [AudioDevice] {
+        audioManager.visibleInputDevices
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var hiddenInputDevices: [AudioDevice] {
+        audioManager.hiddenInputDevices
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
@@ -122,8 +133,12 @@ struct MainView: View {
                         .font(.headline)
                         .padding(.horizontal)
 
-                    ForEach(sortedDevices) { device in
+                    ForEach(visibleOutputDevices) { device in
                         DeviceRow(device: device)
+                    }
+
+                    HiddenDevicesSection(devices: hiddenOutputDevices) { device in
+                        audioManager.showOutputDevice(device)
                     }
                 }
 
@@ -155,8 +170,12 @@ struct MainView: View {
                         .font(.headline)
                         .padding(.horizontal)
 
-                    ForEach(sortedInputDevices) { device in
+                    ForEach(visibleInputDevices) { device in
                         InputDeviceRow(device: device)
+                    }
+
+                    HiddenDevicesSection(devices: hiddenInputDevices) { device in
+                        audioManager.showInputDevice(device)
                     }
                 }
 

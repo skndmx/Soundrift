@@ -39,6 +39,11 @@ struct InputDeviceRow: View {
         .onTapGesture {
             audioManager.setInputDeviceSelected(device, selected: !isSelected)
         }
+        .contextMenu {
+            Button("Hide Device") {
+                audioManager.hideInputDevice(device)
+            }
+        }
         .padding(.horizontal)
     }
 }

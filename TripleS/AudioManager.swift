@@ -48,18 +48,30 @@ class AudioManager: ObservableObject {
     private let selectedInputDevicesKey = "SelectedInputDevices"
     private let knownOutputDevicesKey = "KnownOutputDevices"
     private let knownInputDevicesKey = "KnownInputDevices"
+    private let hiddenOutputDeviceNamesKey = "HiddenOutputDeviceNames"
+    private let hiddenInputDeviceNamesKey = "HiddenInputDeviceNames"
+    private let teamsHideMigrationKey = "didMigrateTeamsHideSetting"
     static let hideMicrosoftTeamsAudioKey = "hideMicrosoftTeamsAudio"
 
     private var preferredOutputDeviceNames: Set<String> = []
     private var preferredInputDeviceNames: Set<String> = []
-    
-    private var hideMicrosoftTeamsAudio: Bool {
-        UserDefaults.standard.bool(forKey: Self.hideMicrosoftTeamsAudioKey)
+    @Published private(set) var hiddenOutputDeviceNames: Set<String> = []
+    @Published private(set) var hiddenInputDeviceNames: Set<String> = []
+
+    var visibleOutputDevices: [AudioDevice] {
+        availableDevices.filter { !hiddenOutputDeviceNames.contains($0.name) }
     }
-    
-    private func filterHiddenDevices(_ devices: [AudioDevice]) -> [AudioDevice] {
-        guard hideMicrosoftTeamsAudio else { return devices }
-        return devices.filter { !$0.isMicrosoftTeamsAudio }
+
+    var hiddenOutputDevices: [AudioDevice] {
+        availableDevices.filter { hiddenOutputDeviceNames.contains($0.name) }
+    }
+
+    var visibleInputDevices: [AudioDevice] {
+        availableInputDevices.filter { !hiddenInputDeviceNames.contains($0.name) }
+    }
+
+    var hiddenInputDevices: [AudioDevice] {
+        availableInputDevices.filter { hiddenInputDeviceNames.contains($0.name) }
     }
     
     private init() {
@@ -73,8 +85,11 @@ class AudioManager: ObservableObject {
         }
         
         // Initialize and load saved devices synchronously to avoid race conditions
-        let liveOutputDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isOutput })
-        let liveInputDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isInput })
+        let liveOutputDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+        let liveInputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+
+        hiddenOutputDeviceNames = loadHiddenDeviceNames(from: hiddenOutputDeviceNamesKey)
+        hiddenInputDeviceNames = loadHiddenDeviceNames(from: hiddenInputDeviceNamesKey)
 
         let outputDevices = mergeWithKnownDevices(
             liveDevices: liveOutputDevices,
@@ -84,10 +99,13 @@ class AudioManager: ObservableObject {
             liveDevices: liveInputDevices,
             knownDevices: loadKnownDevices(from: knownInputDevicesKey)
         )
+
+        migrateLegacyTeamsHideSetting(outputDevices: outputDevices, inputDevices: inputDevices)
         
         // Initialize output devices
         self.availableDevices = outputDevices
         self.preferredOutputDeviceNames = loadPreferredDeviceNames(from: selectedDevicesKey, devices: outputDevices)
+            .subtracting(hiddenOutputDeviceNames)
         self.selectedDevices = syncedSelection(
             devices: outputDevices,
             preferredNames: preferredOutputDeviceNames
@@ -98,6 +116,7 @@ class AudioManager: ObservableObject {
         // Initialize input devices
         self.availableInputDevices = inputDevices
         self.preferredInputDeviceNames = loadPreferredDeviceNames(from: selectedInputDevicesKey, devices: inputDevices)
+            .subtracting(hiddenInputDeviceNames)
         self.selectedInputDevices = syncedSelection(
             devices: inputDevices,
             preferredNames: preferredInputDeviceNames
@@ -196,7 +215,7 @@ class AudioManager: ObservableObject {
     
     func refreshAudioDevices() {
         let previousDevices = availableDevices
-        let liveDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isOutput })
+        let liveDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
         let mergedDevices = mergeWithKnownDevices(
             liveDevices: liveDevices,
             knownDevices: loadKnownDevices(from: knownOutputDevicesKey)
@@ -210,7 +229,7 @@ class AudioManager: ObservableObject {
             preferredNames: preferredOutputDeviceNames
         )
         selectedDevices = syncedSelection(
-            devices: mergedDevices,
+            devices: mergedDevices.filter { !hiddenOutputDeviceNames.contains($0.name) },
             preferredNames: preferredOutputDeviceNames
         )
 
@@ -301,7 +320,7 @@ class AudioManager: ObservableObject {
 
     func refreshInputDevices() {
         let previousDevices = availableInputDevices
-        let liveDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isInput })
+        let liveDevices = AudioDevice.getAllDevices().filter { $0.isInput }
         let mergedDevices = mergeWithKnownDevices(
             liveDevices: liveDevices,
             knownDevices: loadKnownDevices(from: knownInputDevicesKey)
@@ -315,7 +334,7 @@ class AudioManager: ObservableObject {
             preferredNames: preferredInputDeviceNames
         )
         selectedInputDevices = syncedSelection(
-            devices: mergedDevices,
+            devices: mergedDevices.filter { !hiddenInputDeviceNames.contains($0.name) },
             preferredNames: preferredInputDeviceNames
         )
 
@@ -370,6 +389,73 @@ class AudioManager: ObservableObject {
             preferredNames: preferredInputDeviceNames
         )
         saveSelectedInputDevices()
+    }
+
+    func hideOutputDevice(_ device: AudioDevice) {
+        hiddenOutputDeviceNames.insert(device.name)
+        preferredOutputDeviceNames.remove(device.name)
+        selectedDevices = syncedSelection(
+            devices: availableDevices,
+            preferredNames: preferredOutputDeviceNames
+        )
+        saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
+        saveSelectedDevices()
+    }
+
+    func showOutputDevice(_ device: AudioDevice) {
+        hiddenOutputDeviceNames.remove(device.name)
+        saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
+    }
+
+    func hideInputDevice(_ device: AudioDevice) {
+        hiddenInputDeviceNames.insert(device.name)
+        preferredInputDeviceNames.remove(device.name)
+        selectedInputDevices = syncedSelection(
+            devices: availableInputDevices,
+            preferredNames: preferredInputDeviceNames
+        )
+        saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
+        saveSelectedInputDevices()
+    }
+
+    func showInputDevice(_ device: AudioDevice) {
+        hiddenInputDeviceNames.remove(device.name)
+        saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
+    }
+
+    private func loadHiddenDeviceNames(from key: String) -> Set<String> {
+        guard let names = UserDefaults.standard.array(forKey: key) as? [String] else {
+            return []
+        }
+        return Set(names)
+    }
+
+    private func saveHiddenDeviceNames(_ names: Set<String>, to key: String) {
+        UserDefaults.standard.set(Array(names).sorted(), forKey: key)
+    }
+
+    private func migrateLegacyTeamsHideSetting(outputDevices: [AudioDevice], inputDevices: [AudioDevice]) {
+        guard !UserDefaults.standard.bool(forKey: teamsHideMigrationKey) else { return }
+
+        if UserDefaults.standard.object(forKey: Self.hideMicrosoftTeamsAudioKey) as? Bool ?? true {
+            for device in outputDevices where device.isMicrosoftTeamsAudio {
+                hiddenOutputDeviceNames.insert(device.name)
+            }
+            for device in inputDevices where device.isMicrosoftTeamsAudio {
+                hiddenInputDeviceNames.insert(device.name)
+            }
+
+            for saved in loadKnownDevices(from: knownOutputDevicesKey) where saved.name.localizedCaseInsensitiveContains("Microsoft Teams") {
+                hiddenOutputDeviceNames.insert(saved.name)
+            }
+            for saved in loadKnownDevices(from: knownInputDevicesKey) where saved.name.localizedCaseInsensitiveContains("Microsoft Teams") {
+                hiddenInputDeviceNames.insert(saved.name)
+            }
+        }
+
+        saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
+        saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
+        UserDefaults.standard.set(true, forKey: teamsHideMigrationKey)
     }
 
     private func syncedSelection(

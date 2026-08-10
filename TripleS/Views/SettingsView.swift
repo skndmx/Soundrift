@@ -3,17 +3,20 @@ import ServiceManagement
 
 struct SettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @AppStorage(AudioManager.hideMicrosoftTeamsAudioKey) private var hideMicrosoftTeamsAudio = true
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Settings")
                 .font(.headline)
-            
-            Toggle("Hide Microsoft Teams Audio", isOn: $hideMicrosoftTeamsAudio)
-                .onChange(of: hideMicrosoftTeamsAudio) { _, _ in
-                    AudioManager.shared.refreshAllDevices()
-                }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Hidden devices")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text("Right-click a device in the Output or Input tab and choose Hide Device. Hidden devices appear in a collapsible section at the bottom of each list.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Toggle("Launch at login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) { _, newValue in
@@ -23,7 +26,7 @@ struct SettingsView: View {
                         try? SMAppService.mainApp.unregister()
                     }
                 }
-            
+
             Spacer()
         }
         .padding()
@@ -32,4 +35,4 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
-} 
+}
