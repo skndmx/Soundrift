@@ -27,10 +27,7 @@ struct DeviceRow: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.05))
-        )
+        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onTapGesture {
             if audioManager.selectedDevices.contains(device) {

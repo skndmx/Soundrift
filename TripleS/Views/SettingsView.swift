@@ -11,23 +11,16 @@ struct SettingsView: View {
                 .font(.headline)
             
             Toggle("Hide Microsoft Teams Audio", isOn: $hideMicrosoftTeamsAudio)
-                .onChange(of: hideMicrosoftTeamsAudio) { _ in
+                .onChange(of: hideMicrosoftTeamsAudio) { _, _ in
                     AudioManager.shared.refreshAllDevices()
                 }
-            
+
             Toggle("Launch at login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { newValue in
-                    if #available(macOS 13.0, *) {
-                        if newValue {
-                            try? SMAppService.mainApp.register()
-                        } else {
-                            try? SMAppService.mainApp.unregister()
-                        }
+                .onChange(of: launchAtLogin) { _, newValue in
+                    if newValue {
+                        try? SMAppService.mainApp.register()
                     } else {
-                        let success = SMLoginItemSetEnabled("com.yourapp.Soundrift-LaunchHelper" as CFString, newValue)
-                        if !success {
-                            launchAtLogin = false
-                        }
+                        try? SMAppService.mainApp.unregister()
                     }
                 }
             
