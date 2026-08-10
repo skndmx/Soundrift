@@ -9,7 +9,6 @@ APP_PATH="$DERIVED_DATA/Build/Products/Release/Soundrift.app"
 DIST_DIR="$ROOT_DIR/dist"
 
 mkdir -p "$DIST_DIR"
-rm -f "$DIST_DIR"/*.dmg
 rm -rf "$DERIVED_DATA"
 
 echo "Building Soundrift (Release)..."
@@ -52,14 +51,12 @@ else
   npx --yes create-dmg@8 "$APP_PATH" "$DIST_DIR" "${CREATE_DMG_ARGS[@]}"
 fi
 
-GENERATED_DMG="$(find "$DIST_DIR" -maxdepth 1 -name '*.dmg' -type f ! -name "$(basename "$OUTPUT_DMG")" -print -quit)"
-if [[ -n "$GENERATED_DMG" ]]; then
-  mv "$GENERATED_DMG" "$OUTPUT_DMG"
+GENERATED_DMG="$DIST_DIR/Soundrift.dmg"
+if [[ -f "$GENERATED_DMG" ]]; then
+  mv -f "$GENERATED_DMG" "$OUTPUT_DMG"
 elif [[ ! -f "$OUTPUT_DMG" ]]; then
-  GENERATED_DMG="$(find "$DIST_DIR" -maxdepth 1 -name '*.dmg' -type f -print -quit)"
-  if [[ -n "$GENERATED_DMG" && "$GENERATED_DMG" != "$OUTPUT_DMG" ]]; then
-    mv "$GENERATED_DMG" "$OUTPUT_DMG"
-  fi
+  echo "Expected create-dmg output at $GENERATED_DMG" >&2
+  exit 1
 fi
 
 if [[ ! -f "$OUTPUT_DMG" ]]; then
