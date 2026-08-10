@@ -41,6 +41,15 @@ git push origin v1.3.11
 
 Replace `v1.3.11` with the version you are shipping. The tag should match the app version in Xcode (`MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`).
 
+If a release is missing the DMG, move the tag to the latest `main` and push again:
+
+```bash
+git tag -d v1.3.11
+git push origin :refs/tags/v1.3.11
+git tag v1.3.11
+git push origin v1.3.11
+```
+
 After the workflow finishes, the DMG will be available at:
 
 https://github.com/skndmx/TripleS/releases

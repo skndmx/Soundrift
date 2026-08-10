@@ -12,6 +12,8 @@ struct MainView: View {
     @AppStorage("inputHotkeyModifiers") private var inputHotkeyModifiers = Int(modifierCmdKey | modifierShiftKey)
     @AppStorage("inputHotkeyKeyCode") private var inputHotkeyKeyCode = Int(kVK_DownArrow)
     @State private var isRecordingInputHotkey = false
+    @State private var outputHotkeyError: String?
+    @State private var inputHotkeyError: String?
 
     private var sortedDevices: [AudioDevice] {
         audioManager.availableDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
@@ -40,12 +42,14 @@ struct MainView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 900, minHeight: 800)
-        .onAppear {
-            updateDefaultHotkeyIfNeeded()
+        .background(MainWindowAccessor().frame(width: 0, height: 0))
+        .task {
             if let delegate = NSApp.delegate as? AppDelegate {
                 delegate.openWindowAction = openWindow
             }
+        }
+        .onAppear {
+            updateDefaultHotkeyIfNeeded()
         }
         .onChange(of: hotkeyKeyCode) { _, _ in
             updateDefaultHotkeyIfNeeded()
@@ -127,6 +131,7 @@ struct MainView: View {
                     title: "Quick Switch Shortcut",
                     hotkeyString: getHotkeyString(),
                     isRecording: isRecordingHotkey,
+                    errorMessage: outputHotkeyError,
                     recordAction: toggleHotkeyRecording
                 )
             }
@@ -159,6 +164,7 @@ struct MainView: View {
                     title: "Input Switch Shortcut",
                     hotkeyString: getInputHotkeyString(),
                     isRecording: isRecordingInputHotkey,
+                    errorMessage: inputHotkeyError,
                     recordAction: toggleInputHotkeyRecording
                 )
             }
@@ -179,7 +185,13 @@ struct MainView: View {
         .contentCardBackground()
     }
 
-    private func hotkeySection(title: String, hotkeyString: String, isRecording: Bool, recordAction: @escaping () -> Void) -> some View {
+    private func hotkeySection(
+        title: String,
+        hotkeyString: String,
+        isRecording: Bool,
+        errorMessage: String?,
+        recordAction: @escaping () -> Void
+    ) -> some View {
         VStack(spacing: 12) {
             Text(title)
                 .font(.headline)
@@ -194,9 +206,16 @@ struct MainView: View {
                     .buttonStyle(.glassProminent)
             }
 
-            Text("Click 'Record' and press your desired key combination")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("Click 'Record' and press your desired key combination")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding()
         .contentCardBackground()
@@ -259,97 +278,118 @@ struct MainView: View {
     }
 
     private func toggleHotkeyRecording() {
-        isRecordingHotkey.toggle()
         if isRecordingHotkey {
-            localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
-                handleKeyEvent(event)
-                return nil
-            }
+            stopHotkeyRecording()
         } else {
-            if let monitor = localEventMonitor {
-                NSEvent.removeMonitor(monitor)
-                localEventMonitor = nil
-            }
+            beginHotkeyRecording(forInput: false)
         }
     }
 
     private func toggleInputHotkeyRecording() {
-        isRecordingInputHotkey.toggle()
         if isRecordingInputHotkey {
-            localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
-                handleInputKeyEvent(event)
-                return nil
-            }
+            stopHotkeyRecording()
         } else {
-            if let monitor = localEventMonitor {
-                NSEvent.removeMonitor(monitor)
-                localEventMonitor = nil
+            beginHotkeyRecording(forInput: true)
+        }
+    }
+
+    private func beginHotkeyRecording(forInput: Bool) {
+        stopHotkeyRecording(restoreHotkeys: false)
+        suspendRegisteredHotkeys()
+
+        if forInput {
+            inputHotkeyError = nil
+            isRecordingInputHotkey = true
+        } else {
+            outputHotkeyError = nil
+            isRecordingHotkey = true
+        }
+
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
+            Task { @MainActor in
+                if forInput {
+                    handleInputKeyEvent(event)
+                } else {
+                    handleKeyEvent(event)
+                }
+            }
+            return nil
+        }
+    }
+
+    private func suspendRegisteredHotkeys() {
+        HotkeyManager.shared.unregister()
+        HotkeyManager.shared.unregisterInput()
+    }
+
+    private func stopHotkeyRecording(restoreHotkeys: Bool = true) {
+        isRecordingHotkey = false
+        isRecordingInputHotkey = false
+        if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            localEventMonitor = nil
+        }
+        if restoreHotkeys {
+            updateDefaultHotkeyIfNeeded()
+        }
+    }
+
+    @MainActor
+    private func assignHotkey(keyCode: Int, modifiers: Int, toInput: Bool) {
+        let normalizedModifiers = HotkeyValidator.normalizedModifiers(modifiers)
+        let result = HotkeyValidator.validate(
+            keyCode: keyCode,
+            modifiers: normalizedModifiers,
+            outputKeyCode: hotkeyKeyCode,
+            outputModifiers: hotkeyModifiers,
+            inputKeyCode: inputHotkeyKeyCode,
+            inputModifiers: inputHotkeyModifiers,
+            assigningToInput: toInput
+        )
+
+        stopHotkeyRecording()
+
+        switch result {
+        case .success:
+            if toInput {
+                inputHotkeyError = nil
+                inputHotkeyModifiers = normalizedModifiers
+                inputHotkeyKeyCode = keyCode
+            } else {
+                outputHotkeyError = nil
+                hotkeyModifiers = normalizedModifiers
+                hotkeyKeyCode = keyCode
+            }
+            updateDefaultHotkeyIfNeeded()
+        case .failure(let error):
+            if toInput {
+                inputHotkeyError = error.message
+            } else {
+                outputHotkeyError = error.message
             }
         }
     }
 
     private func handleKeyEvent(_ event: NSEvent) {
-        if isRecordingHotkey {
-            let validModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
-            let currentModifiers = event.modifierFlags.intersection(validModifiers)
-
-            guard !currentModifiers.isEmpty else { return }
-
-            hotkeyModifiers = Int(currentModifiers.rawValue)
-            hotkeyKeyCode = Int(event.keyCode)
-
-            if let monitor = localEventMonitor {
-                NSEvent.removeMonitor(monitor)
-                localEventMonitor = nil
-            }
-            isRecordingHotkey = false
-
-            DispatchQueue.main.async {
-                self.updateHotkey()
-            }
-        }
+        guard isRecordingHotkey else { return }
+        processRecordedEvent(event, toInput: false)
     }
 
     private func handleInputKeyEvent(_ event: NSEvent) {
-        if isRecordingInputHotkey {
-            let validModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
-            let currentModifiers = event.modifierFlags.intersection(validModifiers)
-
-            guard !currentModifiers.isEmpty else { return }
-
-            inputHotkeyModifiers = Int(currentModifiers.rawValue)
-            inputHotkeyKeyCode = Int(event.keyCode)
-
-            if let monitor = localEventMonitor {
-                NSEvent.removeMonitor(monitor)
-                localEventMonitor = nil
-            }
-            isRecordingInputHotkey = false
-
-            DispatchQueue.main.async {
-                self.updateInputHotkey()
-            }
-        }
+        guard isRecordingInputHotkey else { return }
+        processRecordedEvent(event, toInput: true)
     }
 
-    private func updateHotkey() {
-        HotkeyManager.shared.unregister()
-        HotkeyManager.shared.register(
-            keyCode: hotkeyKeyCode,
-            modifiers: hotkeyModifiers
-        ) {
-            DeviceSwitchManager.shared.switchToNextDevice(type: .output)
-        }
-    }
+    private func processRecordedEvent(_ event: NSEvent, toInput: Bool) {
+        let validModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+        let currentModifiers = event.modifierFlags.intersection(validModifiers)
+        guard !currentModifiers.isEmpty else { return }
 
-    private func updateInputHotkey() {
-        HotkeyManager.shared.unregisterInput()
-        HotkeyManager.shared.registerInput(
-            keyCode: inputHotkeyKeyCode,
-            modifiers: inputHotkeyModifiers
-        ) {
-            DeviceSwitchManager.shared.switchToNextDevice(type: .input)
-        }
+        assignHotkey(
+            keyCode: Int(event.keyCode),
+            modifiers: Int(currentModifiers.rawValue),
+            toInput: toInput
+        )
     }
 }
 

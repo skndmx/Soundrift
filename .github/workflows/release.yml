@@ -46,6 +46,7 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           name: Soundrift ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           files: dist/Soundrift-*.dmg
+          fail_on_unmatched_files: true
           generate_release_notes: true
           draft: false
           prerelease: false
