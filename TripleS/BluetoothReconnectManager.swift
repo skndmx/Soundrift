@@ -44,6 +44,10 @@ final class BluetoothReconnectManager {
         targets.keys.contains(deviceName)
     }
 
+    func isPairedDevice(named name: String) -> Bool {
+        resolveAddress(for: name) != nil
+    }
+
     func updatePollInterval() {
         startPolling()
     }

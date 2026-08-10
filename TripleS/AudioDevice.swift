@@ -6,6 +6,7 @@ struct AudioDevice: Identifiable, Hashable {
     var isOutput: Bool
     var isAirPlay: Bool
     var isInput: Bool
+    var isBluetooth: Bool
     
     var isMicrosoftTeamsAudio: Bool {
         name.localizedCaseInsensitiveContains("Microsoft Teams")
@@ -55,6 +56,7 @@ struct AudioDevice: Identifiable, Hashable {
         self.isOutput = false
         self.isAirPlay = false
         self.isInput = false
+        self.isBluetooth = false
         self.name = ""
         
         guard populate(from: deviceID) else {
@@ -68,6 +70,7 @@ struct AudioDevice: Identifiable, Hashable {
         self.isOutput = saved.isOutput
         self.isInput = saved.isInput
         self.isAirPlay = saved.isAirPlay
+        self.isBluetooth = saved.isBluetooth
     }
 
     private mutating func populate(from deviceID: AudioDeviceID) -> Bool {
@@ -113,9 +116,10 @@ struct AudioDevice: Identifiable, Hashable {
         
         let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
         let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
-        
-        // Determine if the device is an AirPlay device
-        self.isAirPlay = isAirPlayDevice(deviceID: deviceID)
+
+        let transportType = Self.transportType(for: deviceID)
+        self.isAirPlay = Self.isAirPlayTransport(transportType)
+        self.isBluetooth = Self.isBluetoothTransport(transportType)
         
         // Determine if the device is an input device
         address.mSelector = kAudioDevicePropertyStreamConfiguration
@@ -142,28 +146,40 @@ struct AudioDevice: Identifiable, Hashable {
         return true
     }
     
-    private func isAirPlayDevice(deviceID: AudioDeviceID) -> Bool {
-        // Check for transport type
+    private static func transportType(for deviceID: AudioDeviceID) -> UInt32? {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyTransportType,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        
+
         var transportType: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
-        
-        let result = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &transportType)
-        
-        // Check if it's an AirPlay device by transport type
-        if result == noErr {
-            return transportType == kAudioDeviceTransportTypeAirPlay ||
-                   transportType == kAudioDeviceTransportTypeVirtual
+
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &transportType) == noErr else {
+            return nil
         }
-        
+
+        return transportType
+    }
+
+    private static func isAirPlayTransport(_ transportType: UInt32?) -> Bool {
+        guard let transportType else { return false }
+        return transportType == kAudioDeviceTransportTypeAirPlay
+            || transportType == kAudioDeviceTransportTypeVirtual
+    }
+
+    private static func isBluetoothTransport(_ transportType: UInt32?) -> Bool {
+        guard let transportType else { return false }
+        if transportType == kAudioDeviceTransportTypeBluetooth {
+            return true
+        }
+        if transportType == kAudioDeviceTransportTypeBluetoothLE {
+            return true
+        }
         return false
     }
-    
+
     var isConnected: Bool {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyDeviceIsAlive,
@@ -257,8 +273,9 @@ struct AudioDevice: Identifiable, Hashable {
         self.id = 0
         self.name = name
         self.isOutput = true
-        self.isAirPlay = false // Set to false for preview
-        self.isInput = false // Set to false for preview
+        self.isAirPlay = false
+        self.isInput = false
+        self.isBluetooth = false
     }
     #endif
     

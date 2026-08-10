@@ -27,7 +27,11 @@ struct AudioDeviceRow: View {
 
     private var hasAutomationEnabled: Bool {
         audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind)
-            || audioManager.isAutoReconnectBluetoothEnabled(device)
+            || (supportsBluetoothReconnect && audioManager.isAutoReconnectBluetoothEnabled(device))
+    }
+
+    private var supportsBluetoothReconnect: Bool {
+        audioManager.supportsBluetoothReconnect(for: device)
     }
 
     var body: some View {
@@ -55,7 +59,8 @@ struct AudioDeviceRow: View {
                         Label("Auto-switch", systemImage: "arrow.triangle.swap")
                             .labelStyle(.titleAndIcon)
                     }
-                    if audioManager.isAutoReconnectBluetoothEnabled(device) {
+                    if supportsBluetoothReconnect,
+                       audioManager.isAutoReconnectBluetoothEnabled(device) {
                         Label("BT reconnect", systemImage: "antenna.radiowaves.left.and.right")
                             .labelStyle(.titleAndIcon)
                     }
@@ -80,6 +85,7 @@ struct AudioDeviceRow: View {
                     autoSwitchLabel: autoSwitchLabel,
                     autoSwitchBinding: autoSwitchBinding,
                     autoReconnectBinding: autoReconnectBinding,
+                    showBluetoothReconnect: supportsBluetoothReconnect,
                     isActive: hasAutomationEnabled
                 )
 
@@ -137,6 +143,7 @@ private struct AutomationOptionsButton: View {
     let autoSwitchLabel: String
     let autoSwitchBinding: Binding<Bool>
     let autoReconnectBinding: Binding<Bool>
+    let showBluetoothReconnect: Bool
     let isActive: Bool
 
     @State private var isPresented = false
@@ -158,7 +165,10 @@ private struct AutomationOptionsButton: View {
                     .font(.headline)
 
                 Toggle(autoSwitchLabel, isOn: autoSwitchBinding)
-                Toggle("Auto-reconnect Bluetooth", isOn: autoReconnectBinding)
+
+                if showBluetoothReconnect {
+                    Toggle("Auto-reconnect Bluetooth", isOn: autoReconnectBinding)
+                }
             }
             .padding(16)
             .frame(width: 280)
@@ -173,7 +183,7 @@ struct DeviceListHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.headline)
-            Text("Check devices for your shortcut. Use the bolt icon for auto-switch or Bluetooth reconnect.")
+            Text("Check devices for your shortcut. Use the bolt icon for auto-switch and Bluetooth options.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

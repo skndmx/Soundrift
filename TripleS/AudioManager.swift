@@ -8,6 +8,7 @@ struct SavedDevice: Codable {
     let isInput: Bool
     let isOutput: Bool
     let isAirPlay: Bool
+    let isBluetooth: Bool
 
     init(from device: AudioDevice) {
         id = device.id
@@ -15,10 +16,11 @@ struct SavedDevice: Codable {
         isInput = device.isInput
         isOutput = device.isOutput
         isAirPlay = device.isAirPlay
+        isBluetooth = device.isBluetooth
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, isInput, isOutput, isAirPlay
+        case id, name, isInput, isOutput, isAirPlay, isBluetooth
     }
 
     init(from decoder: Decoder) throws {
@@ -28,6 +30,7 @@ struct SavedDevice: Codable {
         isInput = try container.decode(Bool.self, forKey: .isInput)
         isOutput = try container.decodeIfPresent(Bool.self, forKey: .isOutput) ?? !isInput
         isAirPlay = try container.decodeIfPresent(Bool.self, forKey: .isAirPlay) ?? false
+        isBluetooth = try container.decodeIfPresent(Bool.self, forKey: .isBluetooth) ?? false
     }
 }
 
@@ -454,7 +457,16 @@ class AudioManager: ObservableObject {
         autoReconnectBluetoothDeviceNames.contains(device.name)
     }
 
+    func supportsBluetoothReconnect(for device: AudioDevice) -> Bool {
+        if device.isBluetooth {
+            return true
+        }
+        return BluetoothReconnectManager.shared.isPairedDevice(named: device.name)
+    }
+
     func setAutoReconnectBluetooth(_ device: AudioDevice, enabled: Bool) {
+        guard supportsBluetoothReconnect(for: device) else { return }
+
         if enabled {
             autoReconnectBluetoothDeviceNames.insert(device.name)
             BluetoothReconnectManager.shared.register(deviceName: device.name)
