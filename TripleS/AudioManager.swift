@@ -23,6 +23,16 @@ class AudioManager: ObservableObject {
     
     private let selectedDevicesKey = "SelectedDevices"
     private let selectedInputDevicesKey = "SelectedInputDevices"
+    static let hideMicrosoftTeamsAudioKey = "hideMicrosoftTeamsAudio"
+    
+    private var hideMicrosoftTeamsAudio: Bool {
+        UserDefaults.standard.bool(forKey: Self.hideMicrosoftTeamsAudioKey)
+    }
+    
+    private func filterHiddenDevices(_ devices: [AudioDevice]) -> [AudioDevice] {
+        guard hideMicrosoftTeamsAudio else { return devices }
+        return devices.filter { !$0.isMicrosoftTeamsAudio }
+    }
     
     private init() {
         // Request notification permission
@@ -35,8 +45,8 @@ class AudioManager: ObservableObject {
         }
         
         // Initialize and load saved devices synchronously to avoid race conditions
-        let outputDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
-        let inputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+        let outputDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isOutput })
+        let inputDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isInput })
         
         // Initialize output devices
         self.availableDevices = outputDevices
@@ -132,8 +142,13 @@ class AudioManager: ObservableObject {
         )
     }
     
+    func refreshAllDevices() {
+        refreshAudioDevices()
+        refreshInputDevices()
+    }
+    
     func refreshAudioDevices() {
-        let unsortedDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
+        let unsortedDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isOutput })
         let sortedDevices = unsortedDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         
         // Keep track of previously selected device IDs
@@ -231,7 +246,7 @@ class AudioManager: ObservableObject {
     }
     
     func refreshInputDevices() {
-        let unsortedDevices = AudioDevice.getAllDevices().filter { $0.isInput }
+        let unsortedDevices = filterHiddenDevices(AudioDevice.getAllDevices().filter { $0.isInput })
         let sortedDevices = unsortedDevices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         
         // Keep track of previously selected device IDs

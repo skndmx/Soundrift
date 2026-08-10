@@ -7,6 +7,10 @@ struct AudioDevice: Identifiable, Hashable {
     var isAirPlay: Bool
     var isInput: Bool
     
+    var isMicrosoftTeamsAudio: Bool {
+        name.localizedCaseInsensitiveContains("Microsoft Teams")
+    }
+    
     static func getAllDevices() -> [AudioDevice] {
         var devices: [AudioDevice] = []
         

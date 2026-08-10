@@ -11,6 +11,10 @@ import SwiftUI
 struct TripleSApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
+    init() {
+        UserDefaults.standard.register(defaults: [AudioManager.hideMicrosoftTeamsAudioKey: true])
+    }
+    
     var body: some Scene {
         Settings {
             EmptyView()
