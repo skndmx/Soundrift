@@ -57,6 +57,9 @@ class AudioManager: ObservableObject {
     private var preferredInputDeviceNames: Set<String> = []
     @Published private(set) var hiddenOutputDeviceNames: Set<String> = []
     @Published private(set) var hiddenInputDeviceNames: Set<String> = []
+    @Published private(set) var autoSwitchOutputDeviceNames: Set<String> = []
+    @Published private(set) var autoSwitchInputDeviceNames: Set<String> = []
+    @Published private(set) var autoReconnectBluetoothDeviceNames: Set<String> = []
 
     var visibleOutputDevices: [AudioDevice] {
         availableDevices.filter { !hiddenOutputDeviceNames.contains($0.name) }
@@ -90,6 +93,9 @@ class AudioManager: ObservableObject {
 
         hiddenOutputDeviceNames = loadHiddenDeviceNames(from: hiddenOutputDeviceNamesKey)
         hiddenInputDeviceNames = loadHiddenDeviceNames(from: hiddenInputDeviceNamesKey)
+        autoSwitchOutputDeviceNames = DeviceAutomationStore.loadAutoSwitchOutputNames()
+        autoSwitchInputDeviceNames = DeviceAutomationStore.loadAutoSwitchInputNames()
+        autoReconnectBluetoothDeviceNames = DeviceAutomationStore.loadAutoReconnectNames()
 
         let outputDevices = mergeWithKnownDevices(
             liveDevices: liveOutputDevices,
@@ -135,6 +141,7 @@ class AudioManager: ObservableObject {
         // Setup listeners after initialization
         setupDeviceListener()
         setupDefaultDeviceListener()
+        BluetoothReconnectManager.shared.start(with: autoReconnectBluetoothDeviceNames)
     }
     
     private func setupDeviceListener() {
@@ -235,6 +242,11 @@ class AudioManager: ObservableObject {
 
         saveSelectedDevices()
         currentDevice = AudioDevice.getCurrentDefault()
+
+        let newlyConnected = newlyConnectedDevices(previous: previousDevices, current: mergedDevices)
+        for device in newlyConnected where autoSwitchOutputDeviceNames.contains(device.name) {
+            applyDefaultOutputDevice(device, notify: true)
+        }
     }
     
     func switchToNextDevice() {
@@ -257,23 +269,7 @@ class AudioManager: ObservableObject {
         if nextDevice.setAsDefault() {
             currentDevice = nextDevice
             NotificationCenter.default.post(name: NSNotification.Name("AudioDeviceSwitched"), object: nextDevice)
-            
-            // Show notification
-            let content = UNMutableNotificationContent()
-            content.title = "Audio Output Changed"
-            content.body = "Switched to \(nextDevice.name)"
-            
-            let request = UNNotificationRequest(
-                identifier: UUID().uuidString,
-                content: content,
-                trigger: nil
-            )
-            
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error = error {
-                    print("Error showing notification: \(error)")
-                }
-            }
+            postSwitchNotification(title: "Audio Output Changed", body: "Switched to \(nextDevice.name)")
         }
     }
     
@@ -340,6 +336,11 @@ class AudioManager: ObservableObject {
 
         saveSelectedInputDevices()
         currentInputDevice = AudioDevice.getCurrentDefaultInput()
+
+        let newlyConnected = newlyConnectedDevices(previous: previousDevices, current: mergedDevices)
+        for device in newlyConnected where autoSwitchInputDeviceNames.contains(device.name) {
+            applyDefaultInputDevice(device, notify: true)
+        }
     }
 
     func saveSelectedInputDevices() {
@@ -421,6 +422,90 @@ class AudioManager: ObservableObject {
     func showInputDevice(_ device: AudioDevice) {
         hiddenInputDeviceNames.remove(device.name)
         saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
+    }
+
+    func isAutoSwitchOnConnectEnabled(_ device: AudioDevice, kind: DeviceType) -> Bool {
+        switch kind {
+        case .output: autoSwitchOutputDeviceNames.contains(device.name)
+        case .input: autoSwitchInputDeviceNames.contains(device.name)
+        }
+    }
+
+    func setAutoSwitchOnConnect(_ device: AudioDevice, kind: DeviceType, enabled: Bool) {
+        switch kind {
+        case .output:
+            if enabled {
+                autoSwitchOutputDeviceNames.insert(device.name)
+            } else {
+                autoSwitchOutputDeviceNames.remove(device.name)
+            }
+            DeviceAutomationStore.saveAutoSwitchOutputNames(autoSwitchOutputDeviceNames)
+        case .input:
+            if enabled {
+                autoSwitchInputDeviceNames.insert(device.name)
+            } else {
+                autoSwitchInputDeviceNames.remove(device.name)
+            }
+            DeviceAutomationStore.saveAutoSwitchInputNames(autoSwitchInputDeviceNames)
+        }
+    }
+
+    func isAutoReconnectBluetoothEnabled(_ device: AudioDevice) -> Bool {
+        autoReconnectBluetoothDeviceNames.contains(device.name)
+    }
+
+    func setAutoReconnectBluetooth(_ device: AudioDevice, enabled: Bool) {
+        if enabled {
+            autoReconnectBluetoothDeviceNames.insert(device.name)
+            BluetoothReconnectManager.shared.register(deviceName: device.name)
+        } else {
+            autoReconnectBluetoothDeviceNames.remove(device.name)
+            BluetoothReconnectManager.shared.unregister(deviceName: device.name)
+        }
+        DeviceAutomationStore.saveAutoReconnectNames(autoReconnectBluetoothDeviceNames)
+    }
+
+    private func applyDefaultOutputDevice(_ device: AudioDevice, notify: Bool) {
+        guard device.isConnected, device.setAsDefault() else { return }
+        currentDevice = device
+        NotificationCenter.default.post(name: NSNotification.Name("AudioDeviceSwitched"), object: device)
+        if notify {
+            postSwitchNotification(title: "Audio Output Changed", body: "Connected to \(device.name)")
+        }
+    }
+
+    private func applyDefaultInputDevice(_ device: AudioDevice, notify: Bool) {
+        guard device.isConnected, device.setAsDefaultInput() else { return }
+        currentInputDevice = device
+        if notify {
+            postSwitchNotification(title: "Audio Input Changed", body: "Connected to \(device.name)")
+        }
+    }
+
+    private func postSwitchNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error showing notification: \(error)")
+            }
+        }
+    }
+
+    private func newlyConnectedDevices(previous: [AudioDevice], current: [AudioDevice]) -> [AudioDevice] {
+        current.filter { device in
+            guard device.isConnected else { return false }
+            let wasConnected = previous.first(where: { $0.name == device.name })?.isConnected ?? false
+            return !wasConnected
+        }
     }
 
     private func loadHiddenDeviceNames(from key: String) -> Set<String> {
