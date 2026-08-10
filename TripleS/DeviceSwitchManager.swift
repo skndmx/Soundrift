@@ -25,7 +25,9 @@ class DeviceSwitchManager {
             return
         }
         
-        let currentIndex = connectedDevices.firstIndex { $0.id == audioManager.currentInputDevice?.id } ?? -1
+        let currentIndex = connectedDevices.firstIndex {
+            $0.id == audioManager.currentInputDevice?.id || $0.name == audioManager.currentInputDevice?.name
+        } ?? -1
         let nextIndex = (currentIndex + 1) % connectedDevices.count
         let nextDevice = connectedDevices[nextIndex]
         

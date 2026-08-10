@@ -57,7 +57,20 @@ struct AudioDevice: Identifiable, Hashable {
         self.isInput = false
         self.name = ""
         
-        // Get device name
+        guard populate(from: deviceID) else {
+            return nil
+        }
+    }
+
+    init(saved: SavedDevice) {
+        self.id = saved.id
+        self.name = saved.name
+        self.isOutput = saved.isOutput
+        self.isInput = saved.isInput
+        self.isAirPlay = saved.isAirPlay
+    }
+
+    private mutating func populate(from deviceID: AudioDeviceID) -> Bool {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyDeviceNameCFString,
             mScope: kAudioObjectPropertyScopeGlobal,
@@ -78,7 +91,7 @@ struct AudioDevice: Identifiable, Hashable {
         
         guard result == noErr,
               let unmanagedName = cfName else {
-            return nil
+            return false
         }
         
         self.name = unmanagedName.takeRetainedValue() as String
@@ -90,12 +103,12 @@ struct AudioDevice: Identifiable, Hashable {
         var propSize: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &propSize) == noErr,
               let audioBufferList = malloc(Int(propSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
-            return
+            return false
         }
         defer { free(audioBufferList) }
         
         guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &propSize, audioBufferList) == noErr else {
-            return
+            return false
         }
         
         let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
@@ -111,12 +124,12 @@ struct AudioDevice: Identifiable, Hashable {
         var inputPropSize: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &inputPropSize) == noErr,
               let inputAudioBufferList = malloc(Int(inputPropSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
-            return
+            return false
         }
         defer { free(inputAudioBufferList) }
         
         guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &inputPropSize, inputAudioBufferList) == noErr else {
-            return
+            return false
         }
         
         let inputBufferList = UnsafeMutableAudioBufferListPointer(inputAudioBufferList)
@@ -126,6 +139,7 @@ struct AudioDevice: Identifiable, Hashable {
         
         // Consider the device as output if it has output channels or is an AirPlay device
         self.isOutput = outputChannelCount > 0 || self.isAirPlay
+        return true
     }
     
     private func isAirPlayDevice(deviceID: AudioDeviceID) -> Bool {

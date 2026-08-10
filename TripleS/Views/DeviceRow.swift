@@ -3,39 +3,41 @@ import SwiftUI
 struct DeviceRow: View {
     @StateObject private var audioManager = AudioManager.shared
     let device: AudioDevice
-    
+
+    private var isSelected: Bool {
+        audioManager.isOutputDeviceSelected(device)
+    }
+
     var body: some View {
         HStack(spacing: 16) {
-            Image(systemName: audioManager.selectedDevices.contains(device) ? "checkmark.square.fill" : "square")
-                .foregroundColor(audioManager.selectedDevices.contains(device) ? Color.cyan : Color.gray)
+            Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                .foregroundStyle(isSelected ? Color.cyan : .secondary)
                 .font(.system(size: 16))
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(device.name)
                     .fontWeight(.medium)
                 Text(device.isConnected ? "Connected" : "Disconnected")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
-            
+
             Spacer()
-            
-            if device.id == audioManager.currentDevice?.id {
+
+            if device.isConnected,
+               device.id == audioManager.currentDevice?.id || device.name == audioManager.currentDevice?.name {
                 Image(systemName: "speaker.wave.3.fill")
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
             }
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
+        .opacity(device.isConnected ? 1 : 0.45)
+        .allowsHitTesting(device.isConnected)
         .onTapGesture {
-            if audioManager.selectedDevices.contains(device) {
-                audioManager.selectedDevices.remove(device)
-            } else {
-                audioManager.selectedDevices.insert(device)
-            }
-            audioManager.saveSelectedDevices()
+            audioManager.setOutputDeviceSelected(device, selected: !isSelected)
         }
         .padding(.horizontal)
     }
@@ -73,4 +75,4 @@ extension Color {
         DeviceRow(device: previewDevice)
             .environmentObject(AudioManager.shared)
     }
-} 
+}
