@@ -2,5 +2,13 @@ defaults delete com.kevinjin.TripleS
 
 Delete /Users/kevin/Library/Containers/TripeS
 
-create-dmg 'soundrift.app'
+Release DMG:
 
+  ./scripts/create-dmg.sh
+
+Output: dist/Soundrift-<version>.<build>.dmg
+
+GitHub release:
+
+  git tag v1.3.11
+  git push origin v1.3.11
