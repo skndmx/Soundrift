@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - name: Checkout
@@ -35,12 +35,17 @@ jobs:
           chmod +x scripts/create-dmg.sh
           ./scripts/create-dmg.sh
 
+      - name: Verify DMG artifact
+        run: |
+          ls -la dist/
+          test -n "$(find dist -maxdepth 1 -name 'Soundrift-*.dmg' -print -quit)"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           name: Soundrift ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
-          files: dist/*.dmg
+          files: dist/Soundrift-*.dmg
           generate_release_notes: true
           draft: false
           prerelease: false

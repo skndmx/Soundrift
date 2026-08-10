@@ -18,6 +18,8 @@ dist/Soundrift-<version>.<build>.dmg
 
 Example: `dist/Soundrift-1.3.11.dmg`
 
+The script always performs a **clean build** and verifies the app version inside the DMG matches Xcode before finishing.
+
 To code sign (optional):
 
 ```bash
@@ -42,6 +44,10 @@ Replace `v1.3.11` with the version you are shipping. The tag should match the ap
 After the workflow finishes, the DMG will be available at:
 
 https://github.com/skndmx/TripleS/releases
+
+GitHub also attaches source code archives (`.zip` / `.tar.gz`) to every release automatically. The installable app is the **`Soundrift-x.y.z.dmg`** asset uploaded by the workflow.
+
+If a release only shows source archives and no DMG, the workflow failed (often due to an older macOS/Xcode runner). Check the **Actions** tab, fix any errors, delete the broken release/tag if needed, and push the tag again.
 
 ## Notes
 
