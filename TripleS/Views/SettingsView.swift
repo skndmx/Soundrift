@@ -13,7 +13,7 @@ struct SettingsView: View {
                 Text("Hidden devices")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("Right-click a device in the Output or Input tab and choose Hide Device. Hidden devices appear in a collapsible section at the bottom of each list.")
+                Text("Use the eye icon on any device row to hide it. Hidden devices move to the Hidden section at the bottom of the Output or Input tab, where you can unhide them.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

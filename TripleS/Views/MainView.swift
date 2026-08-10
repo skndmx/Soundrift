@@ -106,9 +106,10 @@ struct MainView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("1. Select your audio devices from the list")
-                Text("2. Set up a keyboard shortcut below")
-                Text("3. Use the shortcut to quickly switch between devices")
+                Text("1. Check devices to include in your shortcut")
+                Text("2. Tap the eye icon to hide devices you don't need")
+                Text("3. Set up a keyboard shortcut below")
+                Text("4. Use the shortcut to quickly switch between devices")
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -129,12 +130,10 @@ struct MainView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Available Output Devices")
-                        .font(.headline)
-                        .padding(.horizontal)
+                    DeviceListHeader(title: "Available Output Devices")
 
                     ForEach(visibleOutputDevices) { device in
-                        DeviceRow(device: device)
+                        AudioDeviceRow(device: device, kind: .output)
                     }
 
                     HiddenDevicesSection(devices: hiddenOutputDevices) { device in
@@ -166,12 +165,10 @@ struct MainView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Available Input Devices")
-                        .font(.headline)
-                        .padding(.horizontal)
+                    DeviceListHeader(title: "Available Input Devices")
 
                     ForEach(visibleInputDevices) { device in
-                        InputDeviceRow(device: device)
+                        AudioDeviceRow(device: device, kind: .input)
                     }
 
                     HiddenDevicesSection(devices: hiddenInputDevices) { device in
