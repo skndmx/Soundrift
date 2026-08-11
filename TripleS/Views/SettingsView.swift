@@ -12,6 +12,21 @@ struct SettingsView: View {
                 .font(.headline)
 
             VStack(alignment: .leading, spacing: 8) {
+                Text("How to use")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("1. Check devices to include in your shortcut")
+                    Text("2. Use the bolt icon for auto-switch or Bluetooth reconnect")
+                    Text("3. Tap the eye icon to hide devices you don't need")
+                    Text("4. Set a keyboard shortcut on the Output or Input tab")
+                    Text("5. Use the shortcut to switch between devices")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Auto-switch when connected")
                     .font(.subheadline)
                     .fontWeight(.medium)

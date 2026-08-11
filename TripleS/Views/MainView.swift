@@ -95,24 +95,7 @@ struct MainView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Divider()
-
             Spacer()
-
-            Text("How to use:")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("1. Check devices to include in your shortcut")
-                Text("2. Use the bolt icon for auto-switch or Bluetooth reconnect")
-                Text("3. Tap the eye icon to hide devices you don't need")
-                Text("4. Set up a keyboard shortcut below")
-                Text("5. Use the shortcut to quickly switch between devices")
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
     }

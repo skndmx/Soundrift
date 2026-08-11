@@ -19,14 +19,13 @@ struct TripleSApp: App {
         MenuBarExtra {
             SoundriftMenuBarMenu()
         } label: {
-            Label {
-                Text("Soundrift")
-            } icon: {
-                Image("MenuBarIcon")
-                    .renderingMode(.template)
-            }
-            .labelStyle(.iconOnly)
-            .background(OpenWindowBridge())
+            // Match NSStatusItem sizing (squareLength ~18pt). Plain Image/Label
+            // in MenuBarExtra otherwise renders the asset smaller.
+            Image(nsImage: menuBarIconImage)
+                .resizable()
+                .renderingMode(.template)
+                .frame(width: 18, height: 18)
+                .background(OpenWindowBridge())
         }
         .menuBarExtraStyle(.menu)
 
@@ -53,6 +52,13 @@ struct TripleSApp: App {
             }
         }
     }
+}
+
+private var menuBarIconImage: NSImage {
+    let image = NSImage(named: "MenuBarIcon") ?? NSImage(size: NSSize(width: 18, height: 18))
+    image.isTemplate = true
+    image.size = NSSize(width: 18, height: 18)
+    return image
 }
 
 /// Lives in the menu bar extra label so `openWindow` stays available after the main window closes.
