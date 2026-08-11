@@ -1,5 +1,15 @@
+# Xcode / local build output
 build/
 dist/
+
+# Local archives of old app/DMG drops (kept on disk, not in git)
+archives/
+
+# Also ignore legacy root-level version folders if any reappear
+/Soundrift */
+/TripleS */
+/soundrift */
+
 .DS_Store
 *.xcuserstate
 xcuserdata/
