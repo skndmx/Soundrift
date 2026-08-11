@@ -1,8 +1,10 @@
 # Releasing Soundrift
 
-## Git workflow
+Maintainer notes for cutting a release. End users can ignore this file — install from [GitHub Releases](https://github.com/skndmx/TripleS/releases).
 
-This repo uses **`main` only**. As a solo developer there is no need for a separate `develop` branch — commit directly to `main`, then tag releases from there.
+## Workflow
+
+This repo uses **`main` only**. Ship by committing to `main`, then pushing a version tag.
 
 ## Build a DMG locally
 
@@ -16,55 +18,45 @@ Output:
 dist/Soundrift-<version>.<build>.dmg
 ```
 
-Example: `dist/Soundrift-1.3.11.dmg`
+The script performs a clean Release build, ad-hoc deep-signs the app, and verifies the version inside the DMG.
 
-The script always performs a **clean build** and verifies the app version inside the DMG matches Xcode before finishing.
-
-To code sign (optional):
+Optional Developer ID signing:
 
 ```bash
 SIGNING_IDENTITY="Developer ID Application: Your Name" ./scripts/create-dmg.sh
 ```
 
-## Publish to GitHub (Option A — tag push)
+## Publish (tag push)
 
-Push a version tag to trigger the [Release workflow](.github/workflows/release.yml). GitHub Actions builds the app, creates the DMG, and attaches it to a new release.
+Pushing a `v*` tag runs [.github/workflows/release.yml](.github/workflows/release.yml), which builds the DMG and attaches it to a GitHub Release.
 
 ```bash
-git add .
-git commit -m "Your release message"
 git push origin main
 
-git tag v1.3.11
-git push origin v1.3.11
+git tag v1.3.14
+git push origin v1.3.14
 ```
 
-Replace `v1.3.11` with the version you are shipping. The tag should match the app version in Xcode (`MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`).
+The tag should match the app version in Xcode (`MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`, e.g. `1.3` + `14` → present as **1.3.14**).
 
-If a release is missing the DMG, move the tag to the latest `main` and push again:
+### Fix a bad / incomplete release
 
 ```bash
-git tag -d v1.3.11
-git push origin :refs/tags/v1.3.11
-git tag v1.3.11
-git push origin v1.3.11
+git tag -d v1.3.14
+git push origin :refs/tags/v1.3.14
+git tag v1.3.14
+git push origin v1.3.14
 ```
 
-After the workflow finishes, the DMG will be available at:
+Releases: https://github.com/skndmx/TripleS/releases  
 
-https://github.com/skndmx/TripleS/releases
+The installable artifact is the **`Soundrift-*.dmg`** asset. Source zip/tarball attachments are automatic and not the app.
 
-GitHub also attaches source code archives (`.zip` / `.tar.gz`) to every release automatically. The installable app is the **`Soundrift-x.y.z.dmg`** asset uploaded by the workflow.
-
-If a release only shows source archives and no DMG, the workflow failed (often due to an older macOS/Xcode runner). Check the **Actions** tab, fix any errors, delete the broken release/tag if needed, and push the tag again.
+If a release has no DMG, check the **Actions** tab — the workflow may have failed (wrong runner / Xcode).
 
 ## Notes
 
-- The app requires **macOS 26+**.
-- Builds are **ad-hoc signed by default** (proper deep sign, not `CODE_SIGNING_ALLOWED=NO`). Downloaders may still need to right-click the app and choose **Open** the first time because the release is not notarized. If macOS says the app is **damaged**, remove the download quarantine with `xattr -cr /path/to/Soundrift.app` and try again.
-- For wider distribution without Gatekeeper warnings, sign with a **Developer ID** and notarize before tagging:
-
-```bash
-SIGNING_IDENTITY="Developer ID Application: Your Name" ./scripts/create-dmg.sh
-```
-- `build/` and `dist/` are gitignored and are not committed.
+- Requires **macOS 26+** to build and run.
+- Default CI/local builds are **ad-hoc signed**, not notarized. Downloaders may need `xattr -cr` + right-click **Open**.
+- For Gatekeeper-clean distribution, use a Developer ID certificate and notarize before publishing.
+- `build/`, `dist/`, and `archives/` are gitignored.

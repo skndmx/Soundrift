@@ -1,63 +1,96 @@
 # Soundrift
 
-A macOS menu bar app for quickly switching audio input and output devices.
+**Soundrift** is a lightweight macOS menu bar utility for switching audio input and output devices with a global keyboard shortcut.
 
-**Requirements:** macOS 26+  
-**Bundle ID:** `com.kevinjin.Soundrift`
+[![macOS 26+](https://img.shields.io/badge/macOS-26%2B-black?style=flat-square)](#requirements)
+[![Release](https://img.shields.io/github/v/release/skndmx/TripleS?style=flat-square)](https://github.com/skndmx/TripleS/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/skndmx/TripleS/total?style=flat-square)](https://github.com/skndmx/TripleS/releases)
+
+<p align="center">
+  <img src="TripleS/Assets.xcassets/AppIcon2.imageset/1024-mac.png" alt="Soundrift icon" width="128" />
+</p>
+
+<p align="center">
+  <img src="docs/images/main-window.png" alt="Soundrift main window — shortcuts in the sidebar, output devices on the right" width="880" />
+</p>
+
+## Why Soundrift?
+
+macOS makes it easy to *change* the default audio device — and tedious to do it often. Soundrift keeps your preferred devices in a short list and lets you cycle them instantly from the keyboard, without opening System Settings.
+
+Built for people who hop between headphones, speakers, and mics all day — including work Macs where Continuity / Apple ID isn’t available.
 
 ## Features
 
-- Switch between selected output and input devices with global keyboard shortcuts
-- Menu bar access — runs in the background after you close the window
-- Hide devices you don’t need (e.g. virtual audio devices)
-- Auto-switch to a device when it connects
-- Auto-reconnect paired Bluetooth devices (useful on Macs without an Apple ID)
-- Launch at login
+| | |
+|---|---|
+| **Global shortcuts** | Separate hotkeys for output and input rotation |
+| **Menu bar app** | Stays out of the way; close the window to hide the Dock icon |
+| **Hide clutter** | Tuck away virtual devices (Teams Audio, etc.) |
+| **Auto-switch** | Jump to a device the moment it connects |
+| **Bluetooth reconnect** | Optionally retry connecting paired AirPods / headsets |
+| **Launch at login** | Ready when you are |
 
 ## Install
 
-Download the latest DMG from [Releases](https://github.com/skndmx/TripleS/releases), open it, and drag **Soundrift** to Applications.
+1. Download the latest **`.dmg`** from [Releases](https://github.com/skndmx/TripleS/releases/latest)
+2. Open the disk image and drag **Soundrift** into **Applications**
+3. Launch Soundrift — look for the headphones icon in the menu bar
 
-If Gatekeeper warns that the app is damaged or can’t be opened (unsigned builds), clear quarantine and open once via right-click:
+### Gatekeeper note
+
+Current releases are **ad-hoc signed** (not notarized). If macOS says the app is damaged or blocked:
 
 ```bash
 xattr -cr /Applications/Soundrift.app
 ```
 
-## Usage
+Then right-click the app → **Open**.
 
-1. Open Soundrift from the menu bar (**Show Main Window**)
-2. On the **Output** / **Input** tabs, check the devices you want in your rotation
-3. Set output and input shortcuts in the left sidebar
-4. Use the shortcuts to cycle devices — a notification shows the active device
+## Quick start
 
-Optional (per device, bolt icon):
+1. Open **Show Main Window** from the menu bar icon  
+2. Check the devices you want in your rotation (Output / Input tabs)  
+3. Record shortcuts in the left sidebar  
+4. Press the shortcut to switch — a notification confirms the active device  
 
-- **Auto-switch when connected** — set as system default when the device appears
-- **Auto-reconnect Bluetooth** — retry connecting a paired Bluetooth device (pair it first in System Settings → Bluetooth)
+**Tips**
 
-Hide clutter with the eye icon; restore devices from the **Hidden** section.
+- Bolt icon on a row → auto-switch and/or Bluetooth auto-reconnect  
+- Eye icon → hide a device; restore it from **Hidden**  
+- **⌘W** (or the red close button) → back to menu-bar-only mode  
+- Quit from the menu bar when you want Soundrift fully exited  
 
-Close the window with **⌘W** or the red button to return to menu-bar-only mode (no Dock icon). Quit from the menu bar when you want to fully exit.
+## Requirements
 
-## Develop
+- macOS **26** or later  
+- Bundle ID: `com.kevinjin.Soundrift`
 
-Open `TripleS.xcodeproj` in Xcode 26+ and run the **TripleS** scheme (product name: Soundrift).
+## Building from source
 
 ```bash
-# Local release DMG
+git clone https://github.com/skndmx/TripleS.git
+cd TripleS
+open TripleS.xcodeproj
+```
+
+Run the **TripleS** scheme in Xcode (product name: **Soundrift**).
+
+```bash
+# Optional: local DMG
 ./scripts/create-dmg.sh
 # → dist/Soundrift-<version>.<build>.dmg
 ```
 
-Release process (tagging, GitHub Actions, signing notes): see [RELEASE.md](RELEASE.md).
+## Contributing
 
-## Reset local preferences
-
-```bash
-defaults delete com.kevinjin.Soundrift
-```
+Issues and pull requests are welcome. For bugs, include your macOS version and a short description of the audio setup (built-in / Bluetooth / virtual devices).
 
 ## License
 
-Private project by Kevin Jin.
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+Made by [Kevin Jin](https://github.com/skndmx)
