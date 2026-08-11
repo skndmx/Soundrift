@@ -1,64 +1,50 @@
 import Cocoa
 import SwiftUI
 
+extension Notification.Name {
+    static let showSoundriftMainWindow = Notification.Name("showSoundriftMainWindow")
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
-    private var mainWindow: NSWindow?
+    private weak var mainWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        setupStatusItem()
-
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(audioDeviceSwitched(_:)),
-            name: NSNotification.Name("AudioDeviceSwitched"),
+            selector: #selector(windowWillCloseNotification(_:)),
+            name: NSWindow.willCloseNotification,
             object: nil
         )
     }
 
     func registerMainWindow(_ window: NSWindow) {
-        if mainWindow !== window {
-            mainWindow?.delegate = nil
-            mainWindow = window
-            window.delegate = self
-        }
+        mainWindow = window
+        window.isReleasedWhenClosed = false
+        window.title = "Soundrift"
     }
 
-    private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        if let button = statusItem?.button {
-            let image = NSImage(named: "MenuBarIcon")
-            image?.isTemplate = true
-            button.image = image
-        }
-
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Current Device: None", action: nil, keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Show Main Window", action: #selector(showMainWindow), keyEquivalent: "m"))
-        menu.addItem(NSMenuItem.separator())
-
-        let quitMenuItem = NSMenuItem(title: "Quit Soundrift", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        quitMenuItem.target = NSApp
-        menu.addItem(quitMenuItem)
-
-        statusItem?.menu = menu
-    }
-
-    @objc private func showMainWindow() {
+    func requestShowMainWindow() {
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.post(name: .showSoundriftMainWindow, object: nil)
 
-        if let window = mainWindow ?? NSApp.windows.first(where: { $0.title == "Soundrift" }) {
-            window.makeKeyAndOrderFront(nil)
-        } else if let openWindow = openWindowAction {
-            openWindow(id: "main")
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            if let window = self.mainWindow ?? NSApp.windows.first(where: { $0.title == "Soundrift" }) {
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
+                }
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
+            }
         }
     }
 
-    @objc private func audioDeviceSwitched(_ notification: Notification) {
-        if let device = notification.object as? AudioDevice {
-            statusItem?.menu?.items[0].title = "Current Device: \(device.name)"
+    @objc private func windowWillCloseNotification(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        guard window === mainWindow || window.title == "Soundrift" else { return }
+
+        DispatchQueue.main.async {
+            NSApp.setActivationPolicy(.accessory)
         }
     }
 
@@ -68,16 +54,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
-            showMainWindow()
+            requestShowMainWindow()
         }
         return true
-    }
-
-    var openWindowAction: OpenWindowAction?
-}
-
-extension AppDelegate: NSWindowDelegate {
-    func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
     }
 }

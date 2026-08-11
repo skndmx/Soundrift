@@ -54,10 +54,8 @@ struct MainView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .background(MainWindowAccessor().frame(width: 0, height: 0))
-        .task {
-            if let delegate = NSApp.delegate as? AppDelegate {
-                delegate.openWindowAction = openWindow
-            }
+        .onReceive(NotificationCenter.default.publisher(for: .showSoundriftMainWindow)) { _ in
+            openWindow(id: "main")
         }
         .onAppear {
             updateDefaultHotkeyIfNeeded()
