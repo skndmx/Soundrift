@@ -25,7 +25,7 @@ XCODEBUILD_ARGS=(
 if [[ -n "${SIGNING_IDENTITY:-}" ]]; then
   XCODEBUILD_ARGS+=(CODE_SIGN_IDENTITY="$SIGNING_IDENTITY")
 else
-  XCODEBUILD_ARGS+=(CODE_SIGNING_ALLOWED=NO)
+  XCODEBUILD_ARGS+=(CODE_SIGN_IDENTITY=-)
 fi
 
 xcodebuild "${XCODEBUILD_ARGS[@]}"
@@ -34,6 +34,19 @@ if [[ ! -d "$APP_PATH" ]]; then
   echo "Expected app bundle not found at $APP_PATH" >&2
   exit 1
 fi
+
+echo "Signing app bundle..."
+if [[ -n "${SIGNING_IDENTITY:-}" ]]; then
+  codesign --force --deep --sign "$SIGNING_IDENTITY" \
+    --options runtime \
+    --entitlements "$ROOT_DIR/TripleS/TripleS.entitlements" \
+    "$APP_PATH"
+else
+  codesign --force --deep --sign - "$APP_PATH"
+fi
+
+echo "Verifying code signature..."
+codesign --verify --deep --strict "$APP_PATH"
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")"

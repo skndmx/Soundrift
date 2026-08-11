@@ -61,5 +61,10 @@ If a release only shows source archives and no DMG, the workflow failed (often d
 ## Notes
 
 - The app requires **macOS 26+**.
-- Builds are **unsigned by default**. Downloaders may need to right-click the app and choose **Open** the first time. For wider distribution, sign and notarize before tagging.
+- Builds are **ad-hoc signed by default** (proper deep sign, not `CODE_SIGNING_ALLOWED=NO`). Downloaders may still need to right-click the app and choose **Open** the first time because the release is not notarized. If macOS says the app is **damaged**, remove the download quarantine with `xattr -cr /path/to/Soundrift.app` and try again.
+- For wider distribution without Gatekeeper warnings, sign with a **Developer ID** and notarize before tagging:
+
+```bash
+SIGNING_IDENTITY="Developer ID Application: Your Name" ./scripts/create-dmg.sh
+```
 - `build/` and `dist/` are gitignored and are not committed.
