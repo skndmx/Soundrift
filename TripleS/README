@@ -1,14 +1,11 @@
-defaults delete com.kevinjin.TripleS
+# Local notes
 
-Delete /Users/kevin/Library/Containers/TripeS
+Prefer the root [README.md](../README.md) and [RELEASE.md](../RELEASE.md).
 
-Release DMG:
+```bash
+# Reset prefs
+defaults delete com.kevinjin.Soundrift
 
-  ./scripts/create-dmg.sh
-
-Output: dist/Soundrift-<version>.<build>.dmg
-
-GitHub release:
-
-  git tag v1.3.11
-  git push origin v1.3.11
+# Local DMG
+./scripts/create-dmg.sh
+```
