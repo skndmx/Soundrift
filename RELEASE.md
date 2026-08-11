@@ -1,6 +1,6 @@
 # Releasing Soundrift
 
-Maintainer notes for cutting a release. End users can ignore this file — install from [GitHub Releases](https://github.com/skndmx/TripleS/releases).
+Maintainer notes for cutting a release. End users can ignore this file — install from [GitHub Releases](https://github.com/skndmx/Soundrift/releases).
 
 ## Workflow
 
@@ -48,7 +48,7 @@ git tag v1.3.14
 git push origin v1.3.14
 ```
 
-Releases: https://github.com/skndmx/TripleS/releases  
+Releases: https://github.com/skndmx/Soundrift/releases  
 
 The installable artifact is the **`Soundrift-*.dmg`** asset. Source zip/tarball attachments are automatic and not the app.
 

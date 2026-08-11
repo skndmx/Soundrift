@@ -3,9 +3,9 @@
 **Soundrift** is a lightweight macOS menu bar utility for switching audio input and output devices with a global keyboard shortcut.
 
 [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-black?style=flat-square)](#requirements)
-[![Release](https://img.shields.io/github/v/release/skndmx/TripleS?style=flat-square)](https://github.com/skndmx/TripleS/releases/latest)
+[![Release](https://img.shields.io/github/v/release/skndmx/Soundrift?style=flat-square)](https://github.com/skndmx/Soundrift/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/skndmx/TripleS/total?style=flat-square)](https://github.com/skndmx/TripleS/releases)
+[![Downloads](https://img.shields.io/github/downloads/skndmx/Soundrift/total?style=flat-square)](https://github.com/skndmx/Soundrift/releases)
 
 <p align="center">
   <img src="TripleS/Assets.xcassets/AppIcon2.imageset/1024-mac.png" alt="Soundrift icon" width="128" />
@@ -34,7 +34,7 @@ Built for people who hop between headphones, speakers, and mics all day — incl
 
 ## Install
 
-1. Download the latest **`.dmg`** from [Releases](https://github.com/skndmx/TripleS/releases/latest)
+1. Download the latest **`.dmg`** from [Releases](https://github.com/skndmx/Soundrift/releases/latest)
 2. Open the disk image and drag **Soundrift** into **Applications**
 3. Launch Soundrift — look for the headphones icon in the menu bar
 
@@ -70,12 +70,12 @@ Then right-click the app → **Open**.
 ## Building from source
 
 ```bash
-git clone https://github.com/skndmx/TripleS.git
-cd TripleS
+git clone https://github.com/skndmx/Soundrift.git
+cd Soundrift
 open TripleS.xcodeproj
 ```
 
-Run the **TripleS** scheme in Xcode (product name: **Soundrift**).
+Run the **TripleS** scheme in Xcode (the app product is named **Soundrift**).
 
 ```bash
 # Optional: local DMG
