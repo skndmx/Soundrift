@@ -28,8 +28,8 @@ xattr -cr /Applications/Soundrift.app
 
 1. Open Soundrift from the menu bar (**Show Main Window**)
 2. On the **Output** / **Input** tabs, check the devices you want in your rotation
-3. Set a keyboard shortcut for each tab
-4. Use the shortcut to cycle devices — a notification shows the active device
+3. Set output and input shortcuts in the left sidebar
+4. Use the shortcuts to cycle devices — a notification shows the active device
 
 Optional (per device, bolt icon):
 

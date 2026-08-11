@@ -75,17 +75,17 @@ struct MainView: View {
     }
 
     private var sidebar: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Text("Soundrift")
                 .font(.largeTitle)
                 .bold()
 
             Image("AppIcon2")
                 .resizable()
-                .frame(width: 150, height: 150)
+                .frame(width: 120, height: 120)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 Text("Version 1.3.13")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -95,7 +95,25 @@ struct MainView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Spacer()
+            Divider()
+
+            sidebarHotkeySection(
+                title: "Output shortcut",
+                hotkeyString: getHotkeyString(),
+                isRecording: isRecordingHotkey,
+                errorMessage: outputHotkeyError,
+                recordAction: toggleHotkeyRecording
+            )
+
+            sidebarHotkeySection(
+                title: "Input shortcut",
+                hotkeyString: getInputHotkeyString(),
+                isRecording: isRecordingInputHotkey,
+                errorMessage: inputHotkeyError,
+                recordAction: toggleInputHotkeyRecording
+            )
+
+            Spacer(minLength: 0)
         }
         .padding()
     }
@@ -122,14 +140,6 @@ struct MainView: View {
                         audioManager.showOutputDevice(device)
                     }
                 }
-
-                hotkeySection(
-                    title: "Quick Switch Shortcut",
-                    hotkeyString: getHotkeyString(),
-                    isRecording: isRecordingHotkey,
-                    errorMessage: outputHotkeyError,
-                    recordAction: toggleHotkeyRecording
-                )
             }
             .padding()
         }
@@ -157,14 +167,6 @@ struct MainView: View {
                         audioManager.showInputDevice(device)
                     }
                 }
-
-                hotkeySection(
-                    title: "Input Switch Shortcut",
-                    hotkeyString: getInputHotkeyString(),
-                    isRecording: isRecordingInputHotkey,
-                    errorMessage: inputHotkeyError,
-                    recordAction: toggleInputHotkeyRecording
-                )
             }
             .padding()
         }
@@ -183,40 +185,38 @@ struct MainView: View {
         .contentCardBackground()
     }
 
-    private func hotkeySection(
+    private func sidebarHotkeySection(
         title: String,
         hotkeyString: String,
         isRecording: Bool,
         errorMessage: String?,
         recordAction: @escaping () -> Void
     ) -> some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.headline)
+                .font(.subheadline)
+                .fontWeight(.semibold)
 
-            HStack {
-                Text(hotkeyString)
-                    .padding(8)
-                    .frame(minWidth: 120)
-                    .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            Text(hotkeyString)
+                .font(.title2.monospaced())
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 6)
+                .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 6))
 
-                Button(isRecording ? "Press any key..." : "Record", action: recordAction)
-                    .buttonStyle(.glassProminent)
-            }
+            Button(isRecording ? "Press keys…" : "Record", action: recordAction)
+                .buttonStyle(.glassProminent)
+                .frame(maxWidth: .infinity)
 
             if let errorMessage {
                 Text(errorMessage)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("Click 'Record' and press your desired key combination")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding()
-        .contentCardBackground()
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func updateDefaultHotkeyIfNeeded() {

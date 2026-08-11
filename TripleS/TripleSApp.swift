@@ -12,6 +12,7 @@ struct TripleSApp: App {
     var body: some Scene {
         WindowGroup("Soundrift", id: "main") {
             MainView()
+                .frame(minWidth: 600, minHeight: 500)
         }
         .defaultSize(width: 800, height: 560)
         .windowToolbarStyle(.unified)

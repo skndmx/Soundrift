@@ -17,6 +17,7 @@ struct MainWindowAccessor: NSViewRepresentable {
 
             window.title = "Soundrift"
             window.isReleasedWhenClosed = false
+            window.minSize = NSSize(width: 600, height: 500)
             (NSApp.delegate as? AppDelegate)?.registerMainWindow(window)
         }
     }
