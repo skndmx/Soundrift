@@ -19,7 +19,7 @@
 
 macOS makes it easy to *change* the default audio device — and tedious to do it often. Soundrift keeps your preferred devices in a short list and lets you cycle them instantly from the keyboard, without opening System Settings.
 
-Built for people who hop between headphones, speakers, and mics all day — including work Macs where Continuity / Apple ID isn’t available.
+Built for people who hop between headphones, speakers, and mics all day.
 
 ## Features
 
@@ -29,7 +29,6 @@ Built for people who hop between headphones, speakers, and mics all day — incl
 | **Menu bar app** | Stays out of the way; close the window to hide the Dock icon |
 | **Hide clutter** | Tuck away virtual devices (Teams Audio, etc.) |
 | **Auto-switch** | Jump to a device the moment it connects |
-| **Bluetooth reconnect** | Optionally retry connecting paired AirPods / headsets |
 | **Launch at login** | Ready when you are |
 
 ## Install
@@ -57,7 +56,7 @@ Then right-click the app → **Open**.
 
 **Tips**
 
-- Bolt icon on a row → auto-switch and/or Bluetooth auto-reconnect  
+- Bolt icon on a row → auto-switch when that device connects  
 - Eye icon → hide a device; restore it from **Hidden**  
 - **⌘W** (or the red close button) → back to menu-bar-only mode  
 - Quit from the menu bar when you want Soundrift fully exited  

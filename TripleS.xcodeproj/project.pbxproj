@@ -416,7 +416,6 @@
 				INFOPLIST_FILE = TripleS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Soundrift;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Soundrift reconnects paired Bluetooth audio devices when auto-reconnect is enabled.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -447,7 +446,6 @@
 				INFOPLIST_FILE = TripleS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Soundrift;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Soundrift reconnects paired Bluetooth audio devices when auto-reconnect is enabled.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

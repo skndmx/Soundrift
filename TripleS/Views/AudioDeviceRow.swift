@@ -25,13 +25,8 @@ struct AudioDeviceRow: View {
         kind == .output ? "Auto-switch output when connected" : "Auto-switch input when connected"
     }
 
-    private var hasAutomationEnabled: Bool {
+    private var hasAutoSwitchEnabled: Bool {
         audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind)
-            || (supportsBluetoothReconnect && audioManager.isAutoReconnectBluetoothEnabled(device))
-    }
-
-    private var supportsBluetoothReconnect: Bool {
-        audioManager.supportsBluetoothReconnect(for: device)
     }
 
     var body: some View {
@@ -55,13 +50,8 @@ struct AudioDeviceRow: View {
                     .foregroundStyle(device.isConnected ? .primary : .secondary)
                 HStack(spacing: 8) {
                     Text(device.isConnected ? "Connected" : "Disconnected")
-                    if audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind) {
+                    if hasAutoSwitchEnabled {
                         Label("Auto-switch", systemImage: "arrow.triangle.swap")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    if supportsBluetoothReconnect,
-                       audioManager.isAutoReconnectBluetoothEnabled(device) {
-                        Label("BT reconnect", systemImage: "antenna.radiowaves.left.and.right")
                             .labelStyle(.titleAndIcon)
                     }
                 }
@@ -84,9 +74,7 @@ struct AudioDeviceRow: View {
                 AutomationOptionsButton(
                     autoSwitchLabel: autoSwitchLabel,
                     autoSwitchBinding: autoSwitchBinding,
-                    autoReconnectBinding: autoReconnectBinding,
-                    showBluetoothReconnect: supportsBluetoothReconnect,
-                    isActive: hasAutomationEnabled
+                    isActive: hasAutoSwitchEnabled
                 )
 
                 Button(action: hideDevice) {
@@ -108,13 +96,6 @@ struct AudioDeviceRow: View {
         Binding(
             get: { audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind) },
             set: { audioManager.setAutoSwitchOnConnect(device, kind: kind, enabled: $0) }
-        )
-    }
-
-    private var autoReconnectBinding: Binding<Bool> {
-        Binding(
-            get: { audioManager.isAutoReconnectBluetoothEnabled(device) },
-            set: { audioManager.setAutoReconnectBluetooth(device, enabled: $0) }
         )
     }
 
@@ -142,8 +123,6 @@ struct AudioDeviceRow: View {
 private struct AutomationOptionsButton: View {
     let autoSwitchLabel: String
     let autoSwitchBinding: Binding<Bool>
-    let autoReconnectBinding: Binding<Bool>
-    let showBluetoothReconnect: Bool
     let isActive: Bool
 
     @State private var isPresented = false
@@ -158,17 +137,13 @@ private struct AutomationOptionsButton: View {
                 .foregroundStyle(isActive ? .cyan : .secondary)
         }
         .buttonStyle(.plain)
-        .help("Connection automation")
+        .help("Auto-switch when connected")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("When this device connects")
                     .font(.headline)
 
                 Toggle(autoSwitchLabel, isOn: autoSwitchBinding)
-
-                if showBluetoothReconnect {
-                    Toggle("Auto-reconnect Bluetooth", isOn: autoReconnectBinding)
-                }
             }
             .padding(16)
             .frame(width: 280)
@@ -183,7 +158,7 @@ struct DeviceListHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.headline)
-            Text("Check devices for your shortcut. Use the bolt icon for auto-switch and Bluetooth options.")
+            Text("Check devices for your shortcut. Use the bolt icon for auto-switch when a device connects.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

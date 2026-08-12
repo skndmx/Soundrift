@@ -6,7 +6,6 @@ struct AudioDevice: Identifiable, Hashable {
     var isOutput: Bool
     var isAirPlay: Bool
     var isInput: Bool
-    var isBluetooth: Bool
     
     var isMicrosoftTeamsAudio: Bool {
         name.localizedCaseInsensitiveContains("Microsoft Teams")
@@ -56,7 +55,6 @@ struct AudioDevice: Identifiable, Hashable {
         self.isOutput = false
         self.isAirPlay = false
         self.isInput = false
-        self.isBluetooth = false
         self.name = ""
         
         guard populate(from: deviceID) else {
@@ -70,7 +68,6 @@ struct AudioDevice: Identifiable, Hashable {
         self.isOutput = saved.isOutput
         self.isInput = saved.isInput
         self.isAirPlay = saved.isAirPlay
-        self.isBluetooth = saved.isBluetooth
     }
 
     private mutating func populate(from deviceID: AudioDeviceID) -> Bool {
@@ -117,9 +114,7 @@ struct AudioDevice: Identifiable, Hashable {
         let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
         let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
 
-        let transportType = Self.transportType(for: deviceID)
-        self.isAirPlay = Self.isAirPlayTransport(transportType)
-        self.isBluetooth = Self.isBluetoothTransport(transportType)
+        self.isAirPlay = Self.isAirPlayTransport(Self.transportType(for: deviceID))
         
         // Determine if the device is an input device
         address.mSelector = kAudioDevicePropertyStreamConfiguration
@@ -167,17 +162,6 @@ struct AudioDevice: Identifiable, Hashable {
         guard let transportType else { return false }
         return transportType == kAudioDeviceTransportTypeAirPlay
             || transportType == kAudioDeviceTransportTypeVirtual
-    }
-
-    private static func isBluetoothTransport(_ transportType: UInt32?) -> Bool {
-        guard let transportType else { return false }
-        if transportType == kAudioDeviceTransportTypeBluetooth {
-            return true
-        }
-        if transportType == kAudioDeviceTransportTypeBluetoothLE {
-            return true
-        }
-        return false
     }
 
     var isConnected: Bool {
@@ -275,7 +259,6 @@ struct AudioDevice: Identifiable, Hashable {
         self.isOutput = true
         self.isAirPlay = false
         self.isInput = false
-        self.isBluetooth = false
     }
     #endif
     

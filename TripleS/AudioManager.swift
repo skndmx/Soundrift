@@ -8,7 +8,6 @@ struct SavedDevice: Codable {
     let isInput: Bool
     let isOutput: Bool
     let isAirPlay: Bool
-    let isBluetooth: Bool
 
     init(from device: AudioDevice) {
         id = device.id
@@ -16,11 +15,10 @@ struct SavedDevice: Codable {
         isInput = device.isInput
         isOutput = device.isOutput
         isAirPlay = device.isAirPlay
-        isBluetooth = device.isBluetooth
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, isInput, isOutput, isAirPlay, isBluetooth
+        case id, name, isInput, isOutput, isAirPlay
     }
 
     init(from decoder: Decoder) throws {
@@ -30,7 +28,6 @@ struct SavedDevice: Codable {
         isInput = try container.decode(Bool.self, forKey: .isInput)
         isOutput = try container.decodeIfPresent(Bool.self, forKey: .isOutput) ?? !isInput
         isAirPlay = try container.decodeIfPresent(Bool.self, forKey: .isAirPlay) ?? false
-        isBluetooth = try container.decodeIfPresent(Bool.self, forKey: .isBluetooth) ?? false
     }
 }
 
@@ -62,7 +59,6 @@ class AudioManager: ObservableObject {
     @Published private(set) var hiddenInputDeviceNames: Set<String> = []
     @Published private(set) var autoSwitchOutputDeviceNames: Set<String> = []
     @Published private(set) var autoSwitchInputDeviceNames: Set<String> = []
-    @Published private(set) var autoReconnectBluetoothDeviceNames: Set<String> = []
 
     var visibleOutputDevices: [AudioDevice] {
         availableDevices.filter { !hiddenOutputDeviceNames.contains($0.name) }
@@ -98,7 +94,6 @@ class AudioManager: ObservableObject {
         hiddenInputDeviceNames = loadHiddenDeviceNames(from: hiddenInputDeviceNamesKey)
         autoSwitchOutputDeviceNames = DeviceAutomationStore.loadAutoSwitchOutputNames()
         autoSwitchInputDeviceNames = DeviceAutomationStore.loadAutoSwitchInputNames()
-        autoReconnectBluetoothDeviceNames = DeviceAutomationStore.loadAutoReconnectNames()
 
         let outputDevices = mergeWithKnownDevices(
             liveDevices: liveOutputDevices,
@@ -144,7 +139,6 @@ class AudioManager: ObservableObject {
         // Setup listeners after initialization
         setupDeviceListener()
         setupDefaultDeviceListener()
-        BluetoothReconnectManager.shared.start(with: autoReconnectBluetoothDeviceNames)
     }
     
     private func setupDeviceListener() {
@@ -451,30 +445,6 @@ class AudioManager: ObservableObject {
             }
             DeviceAutomationStore.saveAutoSwitchInputNames(autoSwitchInputDeviceNames)
         }
-    }
-
-    func isAutoReconnectBluetoothEnabled(_ device: AudioDevice) -> Bool {
-        autoReconnectBluetoothDeviceNames.contains(device.name)
-    }
-
-    func supportsBluetoothReconnect(for device: AudioDevice) -> Bool {
-        if device.isBluetooth {
-            return true
-        }
-        return BluetoothReconnectManager.shared.isPairedDevice(named: device.name)
-    }
-
-    func setAutoReconnectBluetooth(_ device: AudioDevice, enabled: Bool) {
-        guard supportsBluetoothReconnect(for: device) else { return }
-
-        if enabled {
-            autoReconnectBluetoothDeviceNames.insert(device.name)
-            BluetoothReconnectManager.shared.register(deviceName: device.name)
-        } else {
-            autoReconnectBluetoothDeviceNames.remove(device.name)
-            BluetoothReconnectManager.shared.unregister(deviceName: device.name)
-        }
-        DeviceAutomationStore.saveAutoReconnectNames(autoReconnectBluetoothDeviceNames)
     }
 
     private func applyDefaultOutputDevice(_ device: AudioDevice, notify: Bool) {
