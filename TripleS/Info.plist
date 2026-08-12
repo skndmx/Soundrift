@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Soundrift needs microphone access so it can change the system default input device (including switching away from Continuity Camera / iPhone).</string>
+	<string>Soundrift needs microphone access to change the system default input device.</string>
 </dict>
 </plist>

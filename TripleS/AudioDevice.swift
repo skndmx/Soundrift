@@ -181,7 +181,7 @@ struct AudioDevice: Identifiable, Hashable {
             || transportType == kAudioDeviceTransportTypeVirtual
     }
 
-    /// Continuity Camera / iPhone mic — macOS often reclaims default input after other apps set it.
+    /// Continuity Camera / iPhone mic.
     var isContinuityCapture: Bool {
         guard let transportType = Self.transportType(for: id) else { return false }
         return transportType == kAudioDeviceTransportTypeContinuityCaptureWired

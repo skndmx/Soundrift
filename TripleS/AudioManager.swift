@@ -44,16 +44,14 @@ class AudioManager: ObservableObject {
     
     private var deviceListener: AudioObjectPropertyListenerBlock?
     private var defaultDeviceListener: AudioObjectPropertyListenerBlock?
-    /// Last hotkey/auto-switch input choice — FineTune "Lock Input Device" (UID + echo).
-    /// https://github.com/ronitsingh10/FineTune
+    /// FineTune-style input lock: remember the last explicit choice and reassert if
+    /// macOS changes the default (BT reconnect, System Settings, etc.).
+    /// Disable FineTune's "Lock Input Device" (or quit FineTune) when using Soundrift,
+    /// or the two locks will fight each other.
     private var heldInputDeviceName: String?
     private var heldInputDeviceUID: String?
     private let inputEchoTracker = InputEchoTracker()
     private var isRestoringHeldInput = false
-    /// When false, we still remember `heldInputDeviceName` for hotkey rotation but
-    /// do not reassert against Continuity (avoids an endless restore loop).
-    private var inputLockArmed = false
-    private var inputRestoreBudget = 0
     
     private let selectedDevicesKey = "SelectedDevices"
     private let selectedInputDevicesKey = "SelectedInputDevices"
@@ -97,19 +95,11 @@ class AudioManager: ObservableObject {
             }
         }
 
-        // FineTune ships with mic entitlement + usage string; Continuity Camera often
-        // reclaims default input from apps that never requested record permission.
+        // Microphone entitlement + usage string (same as FineTune).
         Self.requestMicrophoneAccessIfNeeded()
 
-        inputEchoTracker.onTimeout = { [weak self] uid in
-            guard let self, self.inputLockArmed else { return }
-            // Echo never came back (Continuity often steals before our set echoes).
-            // Restore at most until the budget is spent — never loop forever.
-            if AudioDevice.getCurrentDefaultInput()?.uid == self.heldInputDeviceUID {
-                return
-            }
-            print("Input echo timed out for \(uid) — re-evaluating lock (budget=\(self.inputRestoreBudget))")
-            self.restoreHeldInputDevice()
+        inputEchoTracker.onTimeout = { [weak self] _ in
+            self?.restoreHeldInputDevice()
         }
         
         // Initialize and load saved devices synchronously to avoid race conditions
@@ -315,7 +305,6 @@ class AudioManager: ObservableObject {
     func switchToNextInputDevice() {
         let connectedDevices = preferredConnectedLiveInputDevices()
             // Skip devices macOS won't allow as the system default (e.g. Teams).
-            // Continuity/iPhone stays in rotation; FineTune-style input lock holds the choice.
             .filter { device in
                 device.canBeSystemDefault(scope: kAudioDevicePropertyScopeInput)
             }
@@ -330,8 +319,6 @@ class AudioManager: ObservableObject {
         }
 
         let before = AudioDevice.getCurrentDefaultInput()
-        // Prefer held selection for rotation so Continuity reclaiming the system
-        // default doesn't pin every press on "switch to MacBook" forever.
         let currentName = heldInputDeviceName
             ?? before?.name
             ?? currentInputDevice?.name
@@ -340,10 +327,9 @@ class AudioManager: ObservableObject {
         let nextDevice = connectedDevices[nextIndex]
 
         print("Input switch: system=\(before?.name ?? "nil") held=\(heldInputDeviceName ?? "nil") → \(nextDevice.name)")
-        print("Input rotation: \(connectedDevices.map(\.name))")
         applyDefaultInputDevice(nextDevice, notify: true)
         let after = AudioDevice.getCurrentDefaultInput()
-        print("Input current device: \(after?.name ?? "nil") (id=\(after?.id ?? 0)) held=\(heldInputDeviceName ?? "nil")")
+        print("Input current device: \(after?.name ?? "nil") held=\(heldInputDeviceName ?? "nil")")
     }
 
     private func preferredConnectedLiveDevices(
@@ -585,12 +571,8 @@ class AudioManager: ObservableObject {
             return
         }
 
-        // FineTune setLockedInputDevice: persist lock UID, set HAL default, echo-increment UID.
         heldInputDeviceName = target.name
         heldInputDeviceUID = target.uid.isEmpty ? nil : target.uid
-        inputLockArmed = heldInputDeviceUID != nil
-        inputRestoreBudget = 5
-        inputEchoTracker.cancelAll()
 
         guard target.setAsDefaultInput() else {
             print("Failed to set default input HAL call: \(target.name)")
@@ -601,21 +583,13 @@ class AudioManager: ObservableObject {
         }
 
         currentInputDevice = AudioDevice.getCurrentDefaultInput() ?? target
-        print("Input set requested=\(target.name) uid=\(target.uid) system=\(currentInputDevice?.name ?? "nil")")
-
-        // Continuity often races the first set — verify a few times without opening IO.
-        for delay in [0.15, 0.4, 0.9] as [TimeInterval] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.restoreHeldInputDevice()
-            }
-        }
+        print("Input set → \(target.name) (system=\(currentInputDevice?.name ?? "nil"))")
 
         if notify {
             postSwitchNotification(title: "Audio Input Changed", body: "Switched to \(target.name)")
         }
     }
 
-    /// FineTune handleDefaultInputDeviceChanged — UID echo, hasPending skip, then restore.
     private func handleDefaultInputDeviceChanged() {
         let actual = AudioDevice.getCurrentDefaultInput()
         currentInputDevice = actual
@@ -623,76 +597,49 @@ class AudioManager: ObservableObject {
 
         let newUID = actual.uid
         if !newUID.isEmpty, inputEchoTracker.consume(newUID) {
-            print("Input echo ignored for \(actual.name)")
             return
         }
-
-        // While our own set is in flight, skip interim routing (FineTune hasPending).
         if inputEchoTracker.hasPending {
-            print("Input routing skipped — echo pending (system=\(actual.name))")
             return
         }
 
-        guard inputLockArmed, let lockedUID = heldInputDeviceUID, !lockedUID.isEmpty else { return }
-        if newUID == lockedUID { return }
-
-        if inputRestoreBudget <= 0 {
-            disarmInputLock(reason: "Continuity kept reclaiming \(actual.name)")
-            return
+        guard let lockedUID = heldInputDeviceUID, !lockedUID.isEmpty else { return }
+        if newUID != lockedUID {
+            print("Input drift: system=\(actual.name) held=\(heldInputDeviceName ?? lockedUID) — restoring")
+            restoreHeldInputDevice()
         }
-
-        print("Input drift detected: system=\(actual.name) held=\(heldInputDeviceName ?? lockedUID) — restoring")
-        restoreHeldInputDevice()
     }
 
-    /// FineTune restoreLockedInputDevice, with a Continuity reclaim budget.
     private func restoreHeldInputDevice() {
         guard !isRestoringHeldInput else { return }
-        guard inputLockArmed, let lockedUID = heldInputDeviceUID, !lockedUID.isEmpty else { return }
-        guard inputRestoreBudget > 0 else {
-            disarmInputLock(reason: "restore budget exhausted")
-            return
-        }
+        guard let lockedUID = heldInputDeviceUID, !lockedUID.isEmpty else { return }
 
         let device = AudioDevice.getAllDevices().first { live in
             live.isInput && live.isConnected && live.uid == lockedUID
         } ?? AudioDevice.getAllDevices().first { live in
-            guard live.isInput, live.isConnected else { return false }
-            return live.name == heldInputDeviceName
+            live.isInput && live.isConnected && live.name == heldInputDeviceName
         }
         guard let device else { return }
-
         if AudioDevice.getCurrentDefaultInput()?.uid == lockedUID { return }
 
-        inputRestoreBudget -= 1
         isRestoringHeldInput = true
         defer { isRestoringHeldInput = false }
 
-        print("Input lock restore → \(device.name) (budget left=\(inputRestoreBudget))")
         if device.setAsDefaultInput() {
             inputEchoTracker.increment(lockedUID)
             currentInputDevice = device
+            print("Input lock restore → \(device.name)")
         }
-    }
-
-    /// Stop fighting Continuity; keep name so hotkey rotation still advances correctly.
-    private func disarmInputLock(reason: String) {
-        print("Input lock disarmed — \(reason)")
-        inputLockArmed = false
-        heldInputDeviceUID = nil
-        inputEchoTracker.cancelAll()
     }
 
     private static func requestMicrophoneAccessIfNeeded() {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
-            print("Microphone access already authorized")
+            break
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .audio) { granted in
-                print(granted ? "Microphone access granted" : "Microphone access denied")
-            }
+            AVCaptureDevice.requestAccess(for: .audio) { _ in }
         case .denied, .restricted:
-            print("Microphone access denied/restricted — Continuity may reclaim default input")
+            print("Microphone access denied — input switching may be limited")
         @unknown default:
             break
         }
@@ -835,34 +782,25 @@ class AudioManager: ObservableObject {
     }
 }
 
-/// FineTune EchoTracker — reference-counted UID echo suppression with timeout restore.
-/// https://github.com/ronitsingh10/FineTune/blob/main/FineTune/Audio/Engine/EchoTracker.swift
+/// FineTune-style echo suppression for our own default-input HAL writes.
 private final class InputEchoTracker {
     private var activeTimeouts: [String: Set<Int>] = [:]
     private var nextToken = 0
-    private var generation = 0
     var onTimeout: ((String) -> Void)?
 
     var hasPending: Bool { !activeTimeouts.isEmpty }
-
-    func cancelAll() {
-        activeTimeouts.removeAll()
-        generation += 1
-    }
 
     func increment(_ uid: String) {
         guard !uid.isEmpty else { return }
         let token = nextToken
         nextToken += 1
-        let gen = generation
         activeTimeouts[uid, default: []].insert(token)
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            guard let self, self.generation == gen else { return }
+            guard let self else { return }
             guard self.activeTimeouts[uid]?.remove(token) != nil else { return }
             if self.activeTimeouts[uid]?.isEmpty == true {
                 self.activeTimeouts.removeValue(forKey: uid)
             }
-            print("Input echo for \(uid) timed out")
             self.onTimeout?(uid)
         }
     }
