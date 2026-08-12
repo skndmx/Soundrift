@@ -402,7 +402,13 @@ class AudioManager: ObservableObject {
 
     func showOutputDevice(_ device: AudioDevice) {
         hiddenOutputDeviceNames.remove(device.name)
+        preferredOutputDeviceNames.insert(device.name)
+        selectedDevices = syncedSelection(
+            devices: availableDevices,
+            preferredNames: preferredOutputDeviceNames
+        )
         saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
+        saveSelectedDevices()
     }
 
     func hideInputDevice(_ device: AudioDevice) {
@@ -418,7 +424,13 @@ class AudioManager: ObservableObject {
 
     func showInputDevice(_ device: AudioDevice) {
         hiddenInputDeviceNames.remove(device.name)
+        preferredInputDeviceNames.insert(device.name)
+        selectedInputDevices = syncedSelection(
+            devices: availableInputDevices,
+            preferredNames: preferredInputDeviceNames
+        )
         saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
+        saveSelectedInputDevices()
     }
 
     func isAutoSwitchOnConnectEnabled(_ device: AudioDevice, kind: DeviceType) -> Bool {
