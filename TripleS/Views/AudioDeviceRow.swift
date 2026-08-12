@@ -295,7 +295,7 @@ struct DeviceListHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.headline)
-            Text("Check devices for your shortcut. Devices macOS won't allow as default (e.g. Teams) are skipped by the hotkey. Drag volume or click the speaker/mic icon to mute. Use the bolt icon for auto-switch when a device connects.")
+            Text("Check devices for your shortcut. Use the bolt icon for auto-switch when a device connects.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
