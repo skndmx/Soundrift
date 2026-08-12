@@ -103,9 +103,8 @@ class HotkeyManager {
         InstallEventHandler(
             GetApplicationEventTarget(),
             { (_, event, userData) -> OSStatus in
-                print("Hotkey detected!")
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData!).takeUnretainedValue()
-                
+
                 var hotKeyID = EventHotKeyID()
                 let status = GetEventParameter(
                     event,
@@ -116,15 +115,17 @@ class HotkeyManager {
                     nil,
                     &hotKeyID
                 )
-                
+
                 if status == noErr {
                     if hotKeyID.signature == OSType("TSSO".fourCharCodeValue) {
+                        print("Hotkey detected! (output)")
                         manager.callback?()
                     } else if hotKeyID.signature == OSType("TSSI".fourCharCodeValue) {
+                        print("Hotkey detected! (input)")
                         manager.inputCallback?()
                     }
                 }
-                
+
                 return noErr
             },
             1,

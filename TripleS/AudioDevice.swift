@@ -3,6 +3,7 @@ import CoreAudio
 struct AudioDevice: Identifiable, Hashable {
     var id: AudioDeviceID
     var name: String
+    var uid: String
     var isOutput: Bool
     var isAirPlay: Bool
     var isInput: Bool
@@ -56,18 +57,25 @@ struct AudioDevice: Identifiable, Hashable {
         self.isAirPlay = false
         self.isInput = false
         self.name = ""
+        self.uid = ""
+        self.isConnected = false
         
         guard populate(from: deviceID) else {
             return nil
         }
+        self.isConnected = Self.isAlive(deviceID)
     }
 
     init(saved: SavedDevice) {
         self.id = saved.id
         self.name = saved.name
+        self.uid = ""
         self.isOutput = saved.isOutput
         self.isInput = saved.isInput
         self.isAirPlay = saved.isAirPlay
+        // Offline / remembered devices must not query Core Audio with stale IDs
+        // (that spams "no object with given ID" in the console).
+        self.isConnected = false
     }
 
     private mutating func populate(from deviceID: AudioDeviceID) -> Bool {
@@ -95,7 +103,16 @@ struct AudioDevice: Identifiable, Hashable {
         }
         
         self.name = unmanagedName.takeRetainedValue() as String
-        
+
+        address.mSelector = kAudioDevicePropertyDeviceUID
+        var cfUID: Unmanaged<CFString>?
+        var uidSize = UInt32(MemoryLayout<CFString>.size)
+        if AudioObjectGetPropertyData(deviceID, &address, 0, nil, &uidSize, &cfUID) == noErr,
+           let unmanagedUID = cfUID {
+            self.uid = unmanagedUID.takeRetainedValue() as String
+        } else {
+            self.uid = ""
+        }        
         // Check specifically for output streams
         address.mSelector = kAudioDevicePropertyStreamConfiguration
         address.mScope = kAudioDevicePropertyScopeOutput
@@ -164,17 +181,43 @@ struct AudioDevice: Identifiable, Hashable {
             || transportType == kAudioDeviceTransportTypeVirtual
     }
 
-    var isConnected: Bool {
+    /// Continuity Camera / iPhone mic — macOS often reclaims default input after other apps set it.
+    var isContinuityCapture: Bool {
+        guard let transportType = Self.transportType(for: id) else { return false }
+        return transportType == kAudioDeviceTransportTypeContinuityCaptureWired
+            || transportType == kAudioDeviceTransportTypeContinuityCaptureWireless
+    }
+
+    /// Whether macOS allows this device to become the system default for the given scope.
+    func canBeSystemDefault(scope: AudioObjectPropertyScope) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceCanBeDefaultDevice,
+            mScope: scope,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectHasProperty(id, &address) else { return true }
+
+        var can: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &can) == noErr else {
+            return true
+        }
+        return can != 0
+    }
+
+    /// Snapshot from the last enumeration / merge. Do not query Core Audio here —
+    /// stale IDs from remembered devices spam `no object with given ID` logs.
+    var isConnected: Bool
+
+    private static func isAlive(_ deviceID: AudioDeviceID) -> Bool {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyDeviceIsAlive,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        
+
         var isAlive: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
-        let deviceID = self.id
-        
         let result = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &isAlive)
         return result == noErr && isAlive == 1
     }
@@ -256,9 +299,11 @@ struct AudioDevice: Identifiable, Hashable {
     init(previewWithName name: String) {
         self.id = 0
         self.name = name
+        self.uid = ""
         self.isOutput = true
         self.isAirPlay = false
         self.isInput = false
+        self.isConnected = true
     }
     #endif
     
