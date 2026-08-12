@@ -3,7 +3,6 @@ import Carbon
 import AppKit
 
 struct MainView: View {
-    @Environment(\.openWindow) private var openWindow
     @StateObject private var audioManager = AudioManager.shared
     @AppStorage("hotkeyModifiers") private var hotkeyModifiers = Int(modifierCmdKey | modifierShiftKey)
     @AppStorage("hotkeyKeyCode") private var hotkeyKeyCode = Int(kVK_UpArrow)
@@ -53,10 +52,7 @@ struct MainView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .background(MainWindowAccessor().frame(width: 0, height: 0))
-        .onReceive(NotificationCenter.default.publisher(for: .showSoundriftMainWindow)) { _ in
-            openWindow(id: "main")
-        }
+        .presentedWindowToolbarStyle(.unified)
         .onAppear {
             updateDefaultHotkeyIfNeeded()
         }
@@ -86,7 +82,7 @@ struct MainView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(spacing: 2) {
-                Text("Version 1.3.15")
+                Text("Version 1.3.16")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 

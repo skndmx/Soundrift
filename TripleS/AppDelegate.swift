@@ -1,51 +1,80 @@
 import Cocoa
 import SwiftUI
 
-extension Notification.Name {
-    static let showSoundriftMainWindow = Notification.Name("showSoundriftMainWindow")
-}
-
-class AppDelegate: NSObject, NSApplicationDelegate {
-    private weak var mainWindow: NSWindow?
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    private var mainWindow: NSWindow?
+    private var keyDownMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(windowWillCloseNotification(_:)),
-            name: NSWindow.willCloseNotification,
-            object: nil
-        )
+        setupMainWindow()
+        installCloseKeyMonitor()
     }
 
-    func registerMainWindow(_ window: NSWindow) {
-        mainWindow = window
-        window.isReleasedWhenClosed = false
+    private func setupMainWindow() {
+        // fullSizeContentView + unified toolbar are required for NavigationSplitView's
+        // sidebar collapse control to sit in the correct leading titlebar position.
+        // Without them (plain NSHostingView chrome), the toggle jumps to the wrong place.
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 560),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
         window.title = "Soundrift"
+        window.minSize = NSSize(width: 600, height: 500)
+        window.isReleasedWhenClosed = false
+        window.toolbarStyle = .unified
+        window.contentViewController = NSHostingController(
+            rootView: MainView()
+                .frame(minWidth: 600, minHeight: 500)
+        )
+        window.delegate = self
+        window.setFrameAutosaveName("SoundriftMainWindow")
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        mainWindow = window
+    }
+
+    /// SwiftUI `.commands` are unreliable for AppKit-hosted windows; intercept ⌘W directly.
+    private func installCloseKeyMonitor() {
+        keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            let isCommandW = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .contains(.command)
+                && !event.modifierFlags.contains(.shift)
+                && !event.modifierFlags.contains(.option)
+                && !event.modifierFlags.contains(.control)
+                && event.charactersIgnoringModifiers?.lowercased() == "w"
+            guard isCommandW else { return event }
+            guard let window = self.mainWindow, window.isVisible else { return event }
+            self.hideMainWindow()
+            return nil
+        }
     }
 
     func requestShowMainWindow() {
         NSApp.setActivationPolicy(.regular)
-        NotificationCenter.default.post(name: .showSoundriftMainWindow, object: nil)
+        NSApp.activate(ignoringOtherApps: true)
 
-        DispatchQueue.main.async {
-            NSApp.activate(ignoringOtherApps: true)
-            if let window = self.mainWindow ?? NSApp.windows.first(where: { $0.title == "Soundrift" }) {
-                if window.isMiniaturized {
-                    window.deminiaturize(nil)
-                }
-                window.makeKeyAndOrderFront(nil)
-                window.orderFrontRegardless()
-            }
+        guard let window = mainWindow else { return }
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
         }
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 
-    @objc private func windowWillCloseNotification(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else { return }
-        guard window === mainWindow || window.title == "Soundrift" else { return }
+    @objc func hideMainWindow() {
+        mainWindow?.orderOut(nil)
+        NSApp.setActivationPolicy(.accessory)
+    }
 
-        DispatchQueue.main.async {
-            NSApp.setActivationPolicy(.accessory)
-        }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // Hide instead of destroying so we never spawn a second window,
+        // and drop to accessory so the Dock dot disappears.
+        hideMainWindow()
+        return false
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

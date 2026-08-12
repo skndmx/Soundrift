@@ -10,13 +10,8 @@ struct TripleSApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Soundrift", id: "main") {
-            MainView()
-                .frame(minWidth: 600, minHeight: 500)
-        }
-        .defaultSize(width: 800, height: 560)
-        .windowToolbarStyle(.unified)
-
+        // MenuBarExtra first: no SwiftUI Window/WindowGroup scene, so close/reopen
+        // cannot spawn duplicate windows. AppDelegate owns the single NSWindow.
         MenuBarExtra {
             SoundriftMenuBarMenu()
         } label: {
@@ -26,17 +21,13 @@ struct TripleSApp: App {
                 .resizable()
                 .renderingMode(.template)
                 .frame(width: 18, height: 18)
-                .background(OpenWindowBridge())
         }
         .menuBarExtraStyle(.menu)
-
-        Settings {
-            EmptyView()
-        }
         .commands {
-            CommandGroup(replacing: .windowList) {
+            // Close lives in File (system saveItem group), which owns ⌘W on macOS.
+            CommandGroup(replacing: .saveItem) {
                 Button("Close") {
-                    NSApplication.shared.keyWindow?.close()
+                    (NSApp.delegate as? AppDelegate)?.hideMainWindow()
                 }
                 .keyboardShortcut("w", modifiers: .command)
             }
@@ -62,21 +53,7 @@ private var menuBarIconImage: NSImage {
     return image
 }
 
-/// Lives in the menu bar extra label so `openWindow` stays available after the main window closes.
-private struct OpenWindowBridge: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .onReceive(NotificationCenter.default.publisher(for: .showSoundriftMainWindow)) { _ in
-                openWindow(id: "main")
-            }
-    }
-}
-
 private struct SoundriftMenuBarMenu: View {
-    @Environment(\.openWindow) private var openWindow
     @StateObject private var audioManager = AudioManager.shared
 
     var body: some View {
@@ -85,15 +62,7 @@ private struct SoundriftMenuBarMenu: View {
         Divider()
 
         Button("Show Main Window") {
-            NSApp.setActivationPolicy(.regular)
-            openWindow(id: "main")
-            DispatchQueue.main.async {
-                NSApp.activate(ignoringOtherApps: true)
-                if let window = NSApp.windows.first(where: { $0.title == "Soundrift" }) {
-                    window.makeKeyAndOrderFront(nil)
-                    window.orderFrontRegardless()
-                }
-            }
+            (NSApp.delegate as? AppDelegate)?.requestShowMainWindow()
         }
 
         Divider()
