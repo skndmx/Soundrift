@@ -4,5 +4,16 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Soundrift needs microphone access to change the system default input device.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Soundrift uses Bluetooth to recognize paired headphones (AirPods, Beats, and similar) so it can show the correct device icon. It does not scan for or connect to devices.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Soundrift uses Bluetooth to recognize paired headphones (AirPods, Beats, and similar) so it can show the correct device icon. It does not scan for or connect to devices.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Soundrift looks on your local network to show the real name of AirPlay devices (for example your Apple TV) instead of the generic “AirPlay” label.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_airplay._tcp</string>
+		<string>_raop._tcp</string>
+	</array>
 </dict>
 </plist>

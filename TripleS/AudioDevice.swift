@@ -6,6 +6,9 @@ struct AudioDevice: Identifiable, Hashable {
     var uid: String
     var isOutput: Bool
     var isAirPlay: Bool
+    var isBluetooth: Bool
+    var bluetoothProductID: UInt16
+    var airPlayDataSourceID: UInt32
     var isInput: Bool
     
     var isMicrosoftTeamsAudio: Bool {
@@ -55,6 +58,9 @@ struct AudioDevice: Identifiable, Hashable {
         // Initialize properties with default values
         self.isOutput = false
         self.isAirPlay = false
+        self.isBluetooth = false
+        self.bluetoothProductID = 0
+        self.airPlayDataSourceID = 0
         self.isInput = false
         self.name = ""
         self.uid = ""
@@ -63,6 +69,7 @@ struct AudioDevice: Identifiable, Hashable {
         guard populate(from: deviceID) else {
             return nil
         }
+        resolveBluetoothIdentityIfNeeded()
         self.isConnected = Self.isAvailableAsConnectedDevice(
             deviceID,
             isOutput: isOutput,
@@ -76,10 +83,25 @@ struct AudioDevice: Identifiable, Hashable {
         self.uid = ""
         self.isOutput = saved.isOutput
         self.isInput = saved.isInput
-        self.isAirPlay = saved.isAirPlay
+        self.isAirPlay = saved.isAirPlay && !saved.name.localizedCaseInsensitiveContains("Microsoft Teams")
+        self.isBluetooth = saved.isBluetooth
+        self.bluetoothProductID = saved.bluetoothProductID
+        self.airPlayDataSourceID = 0
         // Offline / remembered devices must not query Core Audio with stale IDs
         // (that spams "no object with given ID" in the console).
         self.isConnected = false
+        resolveBluetoothIdentityIfNeeded()
+    }
+
+    /// Product ID is not on the HAL device; it comes from the paired Bluetooth
+    /// record, matched by name (so a renamed 🐼 still maps to AirPods Pro).
+    private mutating func resolveBluetoothIdentityIfNeeded() {
+        guard bluetoothProductID == 0 else { return }
+        guard let productID = BluetoothAudioIdentity.productID(matchingName: name), productID != 0 else {
+            return
+        }
+        bluetoothProductID = productID
+        isBluetooth = true
     }
 
     private mutating func populate(from deviceID: AudioDeviceID) -> Bool {
@@ -135,7 +157,20 @@ struct AudioDevice: Identifiable, Hashable {
         let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
         let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
 
-        self.isAirPlay = Self.isAirPlayTransport(Self.transportType(for: deviceID))
+        let transport = Self.transportType(for: deviceID)
+        self.isAirPlay = Self.isAirPlayTransport(transport)
+        self.isBluetooth = Self.isBluetoothTransport(transport)
+        if isAirPlay {
+            let source = AirPlayEndpoint.currentOutputSource(for: deviceID)
+            if let source {
+                self.airPlayDataSourceID = source.id
+            }
+            self.name = AirPlayReceiverDirectory.shared.resolvedDisplayName(
+                halName: name,
+                uid: uid,
+                dataSourceName: source?.name
+            )
+        }
         
         // Determine if the device is an input device
         address.mSelector = kAudioDevicePropertyStreamConfiguration
@@ -180,9 +215,7 @@ struct AudioDevice: Identifiable, Hashable {
     }
 
     private static func isAirPlayTransport(_ transportType: UInt32?) -> Bool {
-        guard let transportType else { return false }
-        return transportType == kAudioDeviceTransportTypeAirPlay
-            || transportType == kAudioDeviceTransportTypeVirtual
+        transportType == kAudioDeviceTransportTypeAirPlay
     }
 
     /// Continuity Camera / iPhone mic.
@@ -216,10 +249,12 @@ struct AudioDevice: Identifiable, Hashable {
         isOutput: Bool,
         isInput: Bool
     ) -> Bool {
-        AudioDeviceAvailability.isConnected(
+        let transport = transportType(for: deviceID)
+        let isAirPlay = isAirPlayTransport(transport)
+        return AudioDeviceAvailability.isConnected(
             isAlive: isAlive(deviceID),
-            isBluetooth: isBluetoothTransport(deviceID),
-            jackUnplugged: isJackUnplugged(deviceID),
+            isBluetooth: isBluetoothTransport(transport),
+            jackUnplugged: isAirPlay ? false : isJackUnplugged(deviceID),
             canBeDefaultOutput: readCanBeDefault(deviceID, scope: kAudioDevicePropertyScopeOutput),
             canBeDefaultInput: readCanBeDefault(deviceID, scope: kAudioDevicePropertyScopeInput),
             isOutput: isOutput,
@@ -265,8 +300,8 @@ struct AudioDevice: Identifiable, Hashable {
         return connected == 0
     }
 
-    private static func isBluetoothTransport(_ deviceID: AudioDeviceID) -> Bool {
-        guard let transportType = transportType(for: deviceID) else { return false }
+    private static func isBluetoothTransport(_ transportType: UInt32?) -> Bool {
+        guard let transportType else { return false }
         return transportType == kAudioDeviceTransportTypeBluetooth
             || transportType == kAudioDeviceTransportTypeBluetoothLE
     }
@@ -288,9 +323,7 @@ struct AudioDevice: Identifiable, Hashable {
         return result == noErr && isAlive == 1
     }
     
-    var isBluetoothTransport: Bool {
-        Self.isBluetoothTransport(id)
-    }
+    var isBluetoothTransport: Bool { isBluetooth }
 
     func channelCount(scope: AudioObjectPropertyScope) -> Int {
         var address = AudioObjectPropertyAddress(
@@ -329,6 +362,9 @@ struct AudioDevice: Identifiable, Hashable {
     }
 
     func setAsDefault() -> Bool {
+        if isAirPlay, airPlayDataSourceID != 0 {
+            _ = AirPlayEndpoint.setCurrentOutputSource(airPlayDataSourceID, on: id)
+        }
         let defaultOK = setHardwareDefault(kAudioHardwarePropertyDefaultOutputDevice)
         // Alert sounds live on a separate default. Best-effort so virtual devices
         // that reject system-output still switch app audio.
@@ -391,6 +427,11 @@ struct AudioDevice: Identifiable, Hashable {
     var hasOutputChannels: Bool {
         channelCount(scope: kAudioDevicePropertyScopeOutput) > 0
     }
+
+    /// SF Symbol matching Control Center's sound output/input glyphs.
+    func glyphSystemName(kind: DeviceType) -> String {
+        NativeAudioDeviceIcon.systemImageName(for: self, kind: kind)
+    }
     
     #if DEBUG
     init(previewWithName name: String) {
@@ -399,6 +440,9 @@ struct AudioDevice: Identifiable, Hashable {
         self.uid = ""
         self.isOutput = true
         self.isAirPlay = false
+        self.isBluetooth = false
+        self.bluetoothProductID = 0
+        self.airPlayDataSourceID = 0
         self.isInput = false
         self.isConnected = true
     }

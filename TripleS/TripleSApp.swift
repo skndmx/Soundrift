@@ -13,7 +13,9 @@ struct TripleSApp: App {
         // MenuBarExtra first: no SwiftUI Window/WindowGroup scene, so close/reopen
         // cannot spawn duplicate windows. AppDelegate owns the single NSWindow.
         MenuBarExtra {
-            SoundriftMenuBarMenu()
+            SoundriftMenuBarMenu {
+                appDelegate.requestShowMainWindow()
+            }
         } label: {
             // Match NSStatusItem sizing (squareLength ~18pt). Plain Image/Label
             // in MenuBarExtra otherwise renders the asset smaller.
@@ -54,16 +56,16 @@ private var menuBarIconImage: NSImage {
 }
 
 private struct SoundriftMenuBarMenu: View {
-    @StateObject private var audioManager = AudioManager.shared
+    let showMainWindow: () -> Void
 
     var body: some View {
-        Text("Current Device: \(audioManager.currentDevice?.name ?? "None")")
+        // Don't observe AudioManager here. MenuBarExtra(.menu) rebuilds the
+        // NSMenu on every @Published change, which eats the Show Main Window click.
+        Text("Current Device: \(AudioDevice.getCurrentDefault()?.name ?? "None")")
 
         Divider()
 
-        Button("Show Main Window") {
-            (NSApp.delegate as? AppDelegate)?.requestShowMainWindow()
-        }
+        Button("Show Main Window", action: showMainWindow)
 
         Divider()
 

@@ -54,6 +54,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func requestShowMainWindow() {
+        // MenuBarExtra still holds key window until the menu finishes closing.
+        DispatchQueue.main.async { [weak self] in
+            self?.presentMainWindow()
+        }
+    }
+
+    private func presentMainWindow() {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 

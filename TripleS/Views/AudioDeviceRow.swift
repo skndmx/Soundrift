@@ -24,9 +24,11 @@ struct AudioDeviceRow: View {
     private var isCurrentDevice: Bool {
         switch kind {
         case .output:
-            liveDevice.id == audioManager.currentDevice?.id || liveDevice.name == audioManager.currentDevice?.name
+            guard let current = audioManager.currentDevice else { return false }
+            return liveDevice.isSameAudioEndpoint(as: current)
         case .input:
-            liveDevice.id == audioManager.currentInputDevice?.id || liveDevice.name == audioManager.currentInputDevice?.name
+            guard let current = audioManager.currentInputDevice else { return false }
+            return liveDevice.isSameAudioEndpoint(as: current)
         }
     }
 
@@ -76,33 +78,33 @@ struct AudioDeviceRow: View {
                 .disabled(!isDeviceConnected)
                 .help(isDeviceConnected ? "Include in shortcut rotation" : "Connect device to include in rotation")
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(device.name)
-                        .fontWeight(.medium)
-                        .foregroundStyle(isDeviceConnected ? .primary : .secondary)
-                    HStack(spacing: 8) {
-                        Text(isDeviceConnected ? "Connected" : "Disconnected")
-                        if hasAutoSwitchEnabled {
-                            Label("Auto-switch", systemImage: "arrow.triangle.swap")
-                                .labelStyle(.titleAndIcon)
+                Button(action: switchToThisDevice) {
+                    HStack(spacing: 10) {
+                        deviceGlyph
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(device.name)
+                                .fontWeight(.medium)
+                                .foregroundStyle(isDeviceConnected ? .primary : .secondary)
+                            HStack(spacing: 8) {
+                                Text(isDeviceConnected ? "Connected" : "Disconnected")
+                                if hasAutoSwitchEnabled {
+                                    Label("Auto-switch", systemImage: "arrow.triangle.swap")
+                                        .labelStyle(.titleAndIcon)
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-
-                Spacer(minLength: 8)
+                .buttonStyle(.plain)
+                .disabled(!isDeviceConnected)
+                .help(switchHelp)
 
                 HStack(spacing: 4) {
-                    if isDeviceConnected, isCurrentDevice {
-                        rowIcon(kind == .output ? "speaker.wave.3.fill" : "mic.fill")
-                            .foregroundStyle(.blue)
-                            .help("Currently active")
-                    } else {
-                        Color.clear
-                            .frame(width: 28, height: 28)
-                    }
-
                     AutomationOptionsButton(
                         autoSwitchLabel: autoSwitchLabel,
                         autoSwitchBinding: autoSwitchBinding,
@@ -168,7 +170,13 @@ struct AudioDeviceRow: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            if isCurrentDevice, isDeviceConnected {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+            }
+        }
         .opacity(isDeviceConnected ? 1 : 0.55)
         .padding(.horizontal)
         .onAppear {
@@ -199,6 +207,44 @@ struct AudioDeviceRow: View {
             get: { audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind) },
             set: { audioManager.setAutoSwitchOnConnect(device, kind: kind, enabled: $0) }
         )
+    }
+
+    private var switchHelp: String {
+        if !isDeviceConnected {
+            return "Connect this device to switch to it"
+        }
+        if isCurrentDevice {
+            return kind == .output ? "Current output" : "Current input"
+        }
+        return kind == .output ? "Switch output to \(device.name)" : "Switch input to \(device.name)"
+    }
+
+    private var rowBackground: Color {
+        if isCurrentDevice, isDeviceConnected {
+            return Color.primary.opacity(0.14)
+        }
+        return Color.primary.opacity(0.05)
+    }
+
+    @ViewBuilder
+    private var deviceGlyph: some View {
+        let isActive = isCurrentDevice && isDeviceConnected
+        Image(systemName: liveDevice.glyphSystemName(kind: kind))
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(isActive ? Color.white : (isDeviceConnected ? Color.primary : Color.secondary))
+            .frame(width: 30, height: 30)
+            .background(
+                isActive ? Color(nsColor: .systemBlue) : Color.primary.opacity(isDeviceConnected ? 0.12 : 0.06),
+                in: Circle()
+            )
+    }
+
+    private func switchToThisDevice() {
+        guard isDeviceConnected else { return }
+        switch kind {
+        case .output: audioManager.selectOutputDevice(liveDevice)
+        case .input: audioManager.selectInputDevice(liveDevice)
+        }
     }
 
     private func setSelected(_ selected: Bool) {
@@ -306,7 +352,7 @@ struct DeviceListHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.headline)
-            Text("Check devices for your shortcut. Use the bolt icon for auto-switch when a device connects.")
+            Text("Check devices for your shortcut. Click a name or icon to switch to it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -74,6 +74,10 @@ enum AudioDeviceAvailability {
 
 extension AudioDevice {
     func isSameAudioEndpoint(as other: AudioDevice) -> Bool {
+        // One HAL "AirPlay" device can host several endpoints (客厅 vs another Apple TV).
+        if isAirPlay || other.isAirPlay {
+            return AudioDeviceMatch.namesMatch(name, other.name)
+        }
         if !uid.isEmpty, !other.uid.isEmpty, uid == other.uid {
             return true
         }

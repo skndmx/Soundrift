@@ -9,6 +9,8 @@ struct SavedDevice: Codable {
     let isInput: Bool
     let isOutput: Bool
     let isAirPlay: Bool
+    let isBluetooth: Bool
+    let bluetoothProductID: UInt16
 
     init(from device: AudioDevice) {
         id = device.id
@@ -16,10 +18,12 @@ struct SavedDevice: Codable {
         isInput = device.isInput
         isOutput = device.isOutput
         isAirPlay = device.isAirPlay
+        isBluetooth = device.isBluetooth
+        bluetoothProductID = device.bluetoothProductID
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, isInput, isOutput, isAirPlay
+        case id, name, isInput, isOutput, isAirPlay, isBluetooth, bluetoothProductID
     }
 
     init(from decoder: Decoder) throws {
@@ -29,6 +33,8 @@ struct SavedDevice: Codable {
         isInput = try container.decode(Bool.self, forKey: .isInput)
         isOutput = try container.decodeIfPresent(Bool.self, forKey: .isOutput) ?? !isInput
         isAirPlay = try container.decodeIfPresent(Bool.self, forKey: .isAirPlay) ?? false
+        isBluetooth = try container.decodeIfPresent(Bool.self, forKey: .isBluetooth) ?? false
+        bluetoothProductID = try container.decodeIfPresent(UInt16.self, forKey: .bluetoothProductID) ?? 0
     }
 }
 
@@ -64,6 +70,7 @@ class AudioManager: ObservableObject {
     private let knownInputDevicesKey = "KnownInputDevices"
     private let hiddenOutputDeviceNamesKey = "HiddenOutputDeviceNames"
     private let hiddenInputDeviceNamesKey = "HiddenInputDeviceNames"
+    private let autoHiddenNonDefaultableKey = "AutoHiddenNonDefaultableDeviceNames"
     private let teamsHideMigrationKey = "didMigrateTeamsHideSetting"
     static let hideMicrosoftTeamsAudioKey = "hideMicrosoftTeamsAudio"
 
@@ -111,10 +118,17 @@ class AudioManager: ObservableObject {
         let liveOutputDevices = AudioDevice.getAllDevices().filter { $0.isOutput }
         let liveInputDevices = AudioDevice.getAllDevices().filter { $0.isInput }
 
-        hiddenOutputDeviceNames = loadHiddenDeviceNames(from: hiddenOutputDeviceNamesKey)
+        hiddenOutputDeviceNames = remapGenericAirPlayNames(
+            loadHiddenDeviceNames(from: hiddenOutputDeviceNamesKey),
+            liveDevices: liveOutputDevices
+        )
         hiddenInputDeviceNames = loadHiddenDeviceNames(from: hiddenInputDeviceNamesKey)
-        autoSwitchOutputDeviceNames = DeviceAutomationStore.loadAutoSwitchOutputNames()
+        autoSwitchOutputDeviceNames = remapGenericAirPlayNames(
+            DeviceAutomationStore.loadAutoSwitchOutputNames(),
+            liveDevices: liveOutputDevices
+        )
         autoSwitchInputDeviceNames = DeviceAutomationStore.loadAutoSwitchInputNames()
+        remapAirPlayPreferenceSets(liveDevices: liveOutputDevices)
 
         let outputDevices = mergeWithKnownDevices(
             liveDevices: liveOutputDevices,
@@ -126,11 +140,14 @@ class AudioManager: ObservableObject {
         )
 
         migrateLegacyTeamsHideSetting(outputDevices: outputDevices, inputDevices: inputDevices)
+        autoHideNonSelectableSystemDevices(outputDevices: outputDevices, inputDevices: inputDevices)
         
         // Initialize output devices
         self.availableDevices = outputDevices
-        self.preferredOutputDeviceNames = loadPreferredDeviceNames(from: selectedDevicesKey, devices: outputDevices)
-            .subtracting(hiddenOutputDeviceNames)
+        self.preferredOutputDeviceNames = remapGenericAirPlayNames(
+            loadPreferredDeviceNames(from: selectedDevicesKey, devices: outputDevices),
+            liveDevices: liveOutputDevices
+        ).subtracting(hiddenOutputDeviceNames)
         self.selectedDevices = syncedSelection(
             devices: outputDevices,
             preferredNames: preferredOutputDeviceNames
@@ -161,6 +178,12 @@ class AudioManager: ObservableObject {
         setupDeviceListener()
         setupDefaultDeviceListener()
         syncAvailabilityListeners()
+
+        DispatchQueue.main.async { [weak self] in
+            AirPlayReceiverDirectory.shared.start {
+                self?.refreshAllDevices()
+            }
+        }
     }
     
     private func setupDeviceListener() {
@@ -252,13 +275,18 @@ class AudioManager: ObservableObject {
             liveDevices: liveDevices,
             knownDevices: loadKnownDevices(from: knownOutputDevicesKey)
         )
+        autoHideNonSelectableSystemDevices(outputDevices: mergedDevices, inputDevices: [])
+        remapAirPlayPreferenceSets(liveDevices: liveDevices)
 
         availableDevices = mergedDevices
         saveKnownDevices(mergedDevices, to: knownOutputDevicesKey)
-        preferredOutputDeviceNames = updatedPreferredNames(
-            mergedDevices: mergedDevices,
-            previousDevices: previousDevices,
-            preferredNames: preferredOutputDeviceNames
+        preferredOutputDeviceNames = remapGenericAirPlayNames(
+            updatedPreferredNames(
+                mergedDevices: mergedDevices,
+                previousDevices: previousDevices,
+                preferredNames: preferredOutputDeviceNames
+            ),
+            liveDevices: liveDevices
         )
         selectedDevices = syncedSelection(
             devices: mergedDevices.filter { !hiddenOutputDeviceNames.contains($0.name) },
@@ -420,6 +448,7 @@ class AudioManager: ObservableObject {
             liveDevices: liveDevices,
             knownDevices: loadKnownDevices(from: knownInputDevicesKey)
         )
+        autoHideNonSelectableSystemDevices(outputDevices: [], inputDevices: mergedDevices)
 
         availableInputDevices = mergedDevices
         saveKnownDevices(mergedDevices, to: knownInputDevicesKey)
@@ -563,6 +592,22 @@ class AudioManager: ObservableObject {
             }
             DeviceAutomationStore.saveAutoSwitchInputNames(autoSwitchInputDeviceNames)
         }
+    }
+
+    func selectOutputDevice(_ device: AudioDevice) {
+        let target = device.resolvedLiveDevice(kind: .output) ?? device
+        if let current = AudioDevice.getCurrentDefault(), current.isSameAudioEndpoint(as: target) {
+            return
+        }
+        applyDefaultOutputDevice(device, notify: true)
+    }
+
+    func selectInputDevice(_ device: AudioDevice) {
+        let target = device.resolvedLiveDevice(kind: .input) ?? device
+        if let current = AudioDevice.getCurrentDefaultInput(), current.isSameAudioEndpoint(as: target) {
+            return
+        }
+        applyDefaultInputDevice(device, notify: true)
     }
 
     private func applyDefaultOutputDevice(_ device: AudioDevice, notify: Bool) {
@@ -777,6 +822,16 @@ class AudioManager: ObservableObject {
                 mSelector: kAudioDevicePropertyJackIsConnected,
                 mScope: kAudioDevicePropertyScopeOutput,
                 mElement: kAudioObjectPropertyElementMain
+            ),
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDataSource,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain
+            ),
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDataSources,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain
             )
         ]
 
@@ -848,6 +903,35 @@ class AudioManager: ObservableObject {
         UserDefaults.standard.set(true, forKey: teamsHideMigrationKey)
     }
 
+    /// Control Center only lists devices macOS will allow as the system default.
+    /// Virtual loopbacks like Teams stay in Core Audio but cannot be selected there.
+    /// Hide those once so the main list matches the system Sound menu; Unhide still works.
+    private func autoHideNonSelectableSystemDevices(outputDevices: [AudioDevice], inputDevices: [AudioDevice]) {
+        var alreadyAutoHidden = loadHiddenDeviceNames(from: autoHiddenNonDefaultableKey)
+        var changed = false
+
+        for device in outputDevices where device.isConnected {
+            guard !device.canBeSystemDefault(scope: kAudioDevicePropertyScopeOutput) else { continue }
+            guard !alreadyAutoHidden.contains(device.name) else { continue }
+            hiddenOutputDeviceNames.insert(device.name)
+            alreadyAutoHidden.insert(device.name)
+            changed = true
+        }
+
+        for device in inputDevices where device.isConnected {
+            guard !device.canBeSystemDefault(scope: kAudioDevicePropertyScopeInput) else { continue }
+            guard !alreadyAutoHidden.contains("in:" + device.name) else { continue }
+            hiddenInputDeviceNames.insert(device.name)
+            alreadyAutoHidden.insert("in:" + device.name)
+            changed = true
+        }
+
+        guard changed else { return }
+        saveHiddenDeviceNames(alreadyAutoHidden, to: autoHiddenNonDefaultableKey)
+        saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
+        saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
+    }
+
     private func syncedSelection(
         devices: [AudioDevice],
         preferredNames: Set<String>
@@ -885,9 +969,32 @@ class AudioManager: ObservableObject {
     ) -> [AudioDevice] {
         var mergedByName: [String: AudioDevice] = [:]
 
+        let liveHasNamedAirPlay = liveDevices.contains {
+            $0.isAirPlay && !AirPlayEndpoint.isGenericDeviceName($0.name)
+        }
+
+        let bonjourAirPlayName = AirPlayReceiverDirectory.shared.preferredRemoteName()
+
         for saved in knownDevices {
+            if AirPlayEndpoint.isGenericDeviceName(saved.name),
+               let named = bonjourAirPlayName ?? liveDevices.first(where: {
+                   $0.isAirPlay && !AirPlayEndpoint.isGenericDeviceName($0.name)
+               })?.name {
+                var renamed = AudioDevice(saved: saved)
+                renamed.name = named
+                renamed.isAirPlay = true
+                mergedByName[named] = renamed
+                continue
+            }
+            if liveHasNamedAirPlay, saved.isAirPlay, AirPlayEndpoint.isGenericDeviceName(saved.name) {
+                continue
+            }
             if let liveDevice = liveDevices.first(where: { $0.name == saved.name }) {
-                mergedByName[liveDevice.name] = liveDevice
+                var live = liveDevice
+                if live.bluetoothProductID == 0, saved.bluetoothProductID != 0 {
+                    live.bluetoothProductID = saved.bluetoothProductID
+                }
+                mergedByName[live.name] = live
             } else {
                 mergedByName[saved.name] = AudioDevice(saved: saved)
             }
@@ -905,6 +1012,36 @@ class AudioManager: ObservableObject {
 
         return mergedByName.values.sorted {
             $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+
+    /// The HAL device is named "AirPlay"; once we know the endpoint (客厅), carry
+    /// hide / rotation / auto-switch over so a leftover AirPlay row does not stick around.
+    private func remapGenericAirPlayNames(_ names: Set<String>, liveDevices: [AudioDevice]) -> Set<String> {
+        var replacements = liveDevices
+            .filter { $0.isAirPlay && !AirPlayEndpoint.isGenericDeviceName($0.name) }
+            .map(\.name)
+        if replacements.isEmpty, let bonjour = AirPlayReceiverDirectory.shared.preferredRemoteName() {
+            replacements = [bonjour]
+        }
+        guard !replacements.isEmpty,
+              names.contains(where: { AirPlayEndpoint.isGenericDeviceName($0) }) else {
+            return names
+        }
+        return Set(names.filter { !AirPlayEndpoint.isGenericDeviceName($0) }).union(replacements)
+    }
+
+    private func remapAirPlayPreferenceSets(liveDevices: [AudioDevice]) {
+        let remappedHidden = remapGenericAirPlayNames(hiddenOutputDeviceNames, liveDevices: liveDevices)
+        if remappedHidden != hiddenOutputDeviceNames {
+            hiddenOutputDeviceNames = remappedHidden
+            saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
+        }
+
+        let remappedAutoSwitch = remapGenericAirPlayNames(autoSwitchOutputDeviceNames, liveDevices: liveDevices)
+        if remappedAutoSwitch != autoSwitchOutputDeviceNames {
+            autoSwitchOutputDeviceNames = remappedAutoSwitch
+            DeviceAutomationStore.saveAutoSwitchOutputNames(autoSwitchOutputDeviceNames)
         }
     }
 
