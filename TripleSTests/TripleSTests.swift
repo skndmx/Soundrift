@@ -6,7 +6,7 @@
 //
 
 import Testing
-@testable import TripleS
+@testable import Soundrift
 
 struct TripleSTests {
 

@@ -63,7 +63,11 @@ struct AudioDevice: Identifiable, Hashable {
         guard populate(from: deviceID) else {
             return nil
         }
-        self.isConnected = Self.isAlive(deviceID)
+        self.isConnected = Self.isAvailableAsConnectedDevice(
+            deviceID,
+            isOutput: isOutput,
+            isInput: isInput
+        )
     }
 
     init(saved: SavedDevice) {
@@ -200,9 +204,71 @@ struct AudioDevice: Identifiable, Hashable {
         var can: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
         guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &can) == noErr else {
-            return true
+            return false
         }
         return can != 0
+    }
+
+    /// Alive is not enough for AirPods-in-case: HAL often keeps the device listed
+    /// with IsAlive=1 after audio has already fallen back to speakers.
+    private static func isAvailableAsConnectedDevice(
+        _ deviceID: AudioDeviceID,
+        isOutput: Bool,
+        isInput: Bool
+    ) -> Bool {
+        AudioDeviceAvailability.isConnected(
+            isAlive: isAlive(deviceID),
+            isBluetooth: isBluetoothTransport(deviceID),
+            jackUnplugged: isJackUnplugged(deviceID),
+            canBeDefaultOutput: readCanBeDefault(deviceID, scope: kAudioDevicePropertyScopeOutput),
+            canBeDefaultInput: readCanBeDefault(deviceID, scope: kAudioDevicePropertyScopeInput),
+            isOutput: isOutput,
+            isInput: isInput
+        )
+    }
+
+    private static func readCanBeDefault(
+        _ deviceID: AudioDeviceID,
+        scope: AudioObjectPropertyScope
+    ) -> Bool? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceCanBeDefaultDevice,
+            mScope: scope,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        guard AudioObjectHasProperty(deviceID, &address) else { return nil }
+
+        var can: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &can) == noErr else {
+            return false
+        }
+        return can != 0
+    }
+
+    private static func isJackUnplugged(_ deviceID: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyJackIsConnected,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        if !AudioObjectHasProperty(deviceID, &address) {
+            address.mScope = kAudioDevicePropertyScopeOutput
+            guard AudioObjectHasProperty(deviceID, &address) else { return false }
+        }
+
+        var connected: UInt32 = 1
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &connected) == noErr else {
+            return false
+        }
+        return connected == 0
+    }
+
+    private static func isBluetoothTransport(_ deviceID: AudioDeviceID) -> Bool {
+        guard let transportType = transportType(for: deviceID) else { return false }
+        return transportType == kAudioDeviceTransportTypeBluetooth
+            || transportType == kAudioDeviceTransportTypeBluetoothLE
     }
 
     /// Snapshot from the last enumeration / merge. Do not query Core Audio here —
@@ -222,23 +288,74 @@ struct AudioDevice: Identifiable, Hashable {
         return result == noErr && isAlive == 1
     }
     
-    func setAsDefault() -> Bool {
+    var isBluetoothTransport: Bool {
+        Self.isBluetoothTransport(id)
+    }
+
+    func channelCount(scope: AudioObjectPropertyScope) -> Int {
         var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: scope,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var propSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(id, &address, 0, nil, &propSize) == noErr,
+              let audioBufferList = malloc(Int(propSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
+            return 0
+        }
+        defer { free(audioBufferList) }
+
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &propSize, audioBufferList) == noErr else {
+            return 0
+        }
+
+        let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
+        return bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
+    }
+
+    func nominalSampleRate() -> Double {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        
-        var deviceIDCopy = self.id  // Create a mutable copy
-        
-        return AudioObjectSetPropertyData(
+        var rate: Float64 = 0
+        var size = UInt32(MemoryLayout<Float64>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &rate) == noErr else {
+            return 0
+        }
+        return rate
+    }
+
+    func setAsDefault() -> Bool {
+        let defaultOK = setHardwareDefault(kAudioHardwarePropertyDefaultOutputDevice)
+        // Alert sounds live on a separate default. Best-effort so virtual devices
+        // that reject system-output still switch app audio.
+        _ = setHardwareDefault(kAudioHardwarePropertyDefaultSystemOutputDevice)
+        return defaultOK
+    }
+
+    func setHardwareDefault(_ selector: AudioObjectPropertySelector) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: selector,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var deviceIDCopy = id
+        let status = AudioObjectSetPropertyData(
             AudioObjectID(kAudioObjectSystemObject),
             &address,
             0,
             nil,
             UInt32(MemoryLayout<AudioDeviceID>.size),
             &deviceIDCopy
-        ) == noErr
+        )
+        if status != noErr {
+            print("HAL set selector=\(selector) failed status=\(status) device=\(name) id=\(id)")
+        }
+        return status == noErr
     }
     
     static func getCurrentDefault() -> AudioDevice? {
@@ -272,27 +389,7 @@ struct AudioDevice: Identifiable, Hashable {
     }
     
     var hasOutputChannels: Bool {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyStreamConfiguration,
-            mScope: kAudioDevicePropertyScopeOutput,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        
-        var propSize: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(id, &address, 0, nil, &propSize) == noErr,
-              let audioBufferList = malloc(Int(propSize))?.assumingMemoryBound(to: AudioBufferList.self) else {
-            return false
-        }
-        defer { free(audioBufferList) }
-        
-        guard AudioObjectGetPropertyData(id, &address, 0, nil, &propSize, audioBufferList) == noErr else {
-            return false
-        }
-        
-        let bufferList = UnsafeMutableAudioBufferListPointer(audioBufferList)
-        let outputChannelCount = bufferList.reduce(0) { $0 + Int($1.mNumberChannels) }
-        
-        return outputChannelCount > 0
+        channelCount(scope: kAudioDevicePropertyScopeOutput) > 0
     }
     
     #if DEBUG

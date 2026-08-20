@@ -24,10 +24,21 @@ struct AudioDeviceRow: View {
     private var isCurrentDevice: Bool {
         switch kind {
         case .output:
-            device.id == audioManager.currentDevice?.id || device.name == audioManager.currentDevice?.name
+            liveDevice.id == audioManager.currentDevice?.id || liveDevice.name == audioManager.currentDevice?.name
         case .input:
-            device.id == audioManager.currentInputDevice?.id || device.name == audioManager.currentInputDevice?.name
+            liveDevice.id == audioManager.currentInputDevice?.id || liveDevice.name == audioManager.currentInputDevice?.name
         }
+    }
+
+    private var liveDevice: AudioDevice {
+        let pool = kind == .output ? audioManager.availableDevices : audioManager.availableInputDevices
+        return pool.first { $0.id == device.id }
+            ?? pool.first { AudioDeviceMatch.namesMatch($0.name, device.name) }
+            ?? device
+    }
+
+    private var isDeviceConnected: Bool {
+        liveDevice.isConnected
     }
 
     private var autoSwitchLabel: String {
@@ -53,7 +64,7 @@ struct AudioDeviceRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 Button {
-                    guard device.isConnected else { return }
+                    guard isDeviceConnected else { return }
                     setSelected(!isSelected)
                 } label: {
                     Image(systemName: isSelected ? "checkmark.square.fill" : "square")
@@ -62,15 +73,15 @@ struct AudioDeviceRow: View {
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
-                .disabled(!device.isConnected)
-                .help(device.isConnected ? "Include in shortcut rotation" : "Connect device to include in rotation")
+                .disabled(!isDeviceConnected)
+                .help(isDeviceConnected ? "Include in shortcut rotation" : "Connect device to include in rotation")
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(device.name)
                         .fontWeight(.medium)
-                        .foregroundStyle(device.isConnected ? .primary : .secondary)
+                        .foregroundStyle(isDeviceConnected ? .primary : .secondary)
                     HStack(spacing: 8) {
-                        Text(device.isConnected ? "Connected" : "Disconnected")
+                        Text(isDeviceConnected ? "Connected" : "Disconnected")
                         if hasAutoSwitchEnabled {
                             Label("Auto-switch", systemImage: "arrow.triangle.swap")
                                 .labelStyle(.titleAndIcon)
@@ -83,7 +94,7 @@ struct AudioDeviceRow: View {
                 Spacer(minLength: 8)
 
                 HStack(spacing: 4) {
-                    if device.isConnected, isCurrentDevice {
+                    if isDeviceConnected, isCurrentDevice {
                         rowIcon(kind == .output ? "speaker.wave.3.fill" : "mic.fill")
                             .foregroundStyle(.blue)
                             .help("Currently active")
@@ -107,7 +118,7 @@ struct AudioDeviceRow: View {
                 }
             }
 
-            if device.isConnected {
+            if isDeviceConnected {
                 if supportsVolume {
                     HStack(spacing: 10) {
                         Button(action: toggleMute) {
@@ -158,7 +169,7 @@ struct AudioDeviceRow: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
         .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 8))
-        .opacity(device.isConnected ? 1 : 0.55)
+        .opacity(isDeviceConnected ? 1 : 0.55)
         .padding(.horizontal)
         .onAppear {
             refreshVolumeFromDevice(reprobeSupport: true)
@@ -167,12 +178,12 @@ struct AudioDeviceRow: View {
         .onDisappear {
             stopVolumeMonitor()
         }
-        .onChange(of: device.id) { _, _ in
+        .onChange(of: liveDevice.id) { _, _ in
             didProbeSupport = false
             refreshVolumeFromDevice(reprobeSupport: true)
             startVolumeMonitor()
         }
-        .onChange(of: device.isConnected) { _, connected in
+        .onChange(of: isDeviceConnected) { _, connected in
             didProbeSupport = false
             refreshVolumeFromDevice(reprobeSupport: true)
             if connected {
@@ -234,7 +245,7 @@ struct AudioDeviceRow: View {
 
     private func startVolumeMonitor() {
         stopVolumeMonitor()
-        guard device.isConnected else { return }
+        guard isDeviceConnected else { return }
         volumeMonitor = device.makeVolumeMonitor(scope: volumeScope) { [interaction] in
             guard !interaction.isAdjustingVolume else { return }
             refreshVolumeFromDevice(reprobeSupport: false)

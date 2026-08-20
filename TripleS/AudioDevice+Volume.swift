@@ -3,17 +3,10 @@ import CoreAudio
 import Foundation
 
 extension AudioDevice {
-    /// Prefer the live Core Audio device matching this name (IDs can change across reconnects).
-    func resolvedLiveDevice() -> AudioDevice? {
-        AudioDevice.getAllDevices().first { live in
-            live.name == name && live.isConnected
-        }
-    }
-
     /// Whether this connected device exposes a volume that actually changes when set.
     /// Some virtual devices (e.g. Teams input) advertise volume properties that ignore writes.
     func hasVolumeControl(scope: AudioObjectPropertyScope) -> Bool {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return false }
         guard target.getVolume(scope: scope) != nil else { return false }
 
@@ -31,7 +24,7 @@ extension AudioDevice {
 
     /// Device volume in 0...1, or nil if unavailable.
     func getVolume(scope: AudioObjectPropertyScope) -> Float? {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return nil }
 
         for candidate in target.volumePropertyCandidates(scope: scope) {
@@ -48,7 +41,7 @@ extension AudioDevice {
 
     @discardableResult
     func setVolume(_ value: Float, scope: AudioObjectPropertyScope) -> Bool {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return false }
         let volume = clampVolume(value)
 
@@ -86,7 +79,7 @@ extension AudioDevice {
     }
 
     func hasMuteControl(scope: AudioObjectPropertyScope) -> Bool {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return false }
         return target.mutePropertyCandidates(scope: scope).contains {
             target.isPropertySettable(
@@ -98,7 +91,7 @@ extension AudioDevice {
     }
 
     func getMute(scope: AudioObjectPropertyScope) -> Bool? {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return nil }
         for candidate in target.mutePropertyCandidates(scope: scope) {
             if let value = target.getUInt32(
@@ -114,7 +107,7 @@ extension AudioDevice {
 
     @discardableResult
     func setMute(_ muted: Bool, scope: AudioObjectPropertyScope) -> Bool {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return false }
         let value: UInt32 = muted ? 1 : 0
         var didSet = false
@@ -146,9 +139,13 @@ extension AudioDevice {
         scope: AudioObjectPropertyScope,
         onChange: @escaping () -> Void
     ) -> DeviceVolumeMonitor? {
-        let target = resolvedLiveDevice() ?? self
+        let target = resolvedLiveDevice(kind: kind(for: scope)) ?? self
         guard target.isConnected else { return nil }
         return DeviceVolumeMonitor(deviceID: target.id, scope: scope, onChange: onChange)
+    }
+
+    private func kind(for scope: AudioObjectPropertyScope) -> DeviceType {
+        scope == kAudioDevicePropertyScopeInput ? .input : .output
     }
 
     private struct VolumeProperty {

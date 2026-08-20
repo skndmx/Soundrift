@@ -44,6 +44,11 @@ class AudioManager: ObservableObject {
     
     private var deviceListener: AudioObjectPropertyListenerBlock?
     private var defaultDeviceListener: AudioObjectPropertyListenerBlock?
+    private var availabilityListenerBlock: AudioObjectPropertyListenerBlock?
+    private var availabilityListenerIDs: Set<AudioDeviceID> = []
+    private var availabilityAddresses: [AudioDeviceID: [AudioObjectPropertyAddress]] = [:]
+    private var followUpRefreshWork: [DispatchWorkItem] = []
+    private var availabilityRefreshWork: DispatchWorkItem?
     /// FineTune-style input lock: remember the last explicit choice and reassert if
     /// macOS changes the default (BT reconnect, System Settings, etc.).
     /// Disable FineTune's "Lock Input Device" (or quit FineTune) when using Soundrift,
@@ -155,6 +160,7 @@ class AudioManager: ObservableObject {
         // Setup listeners after initialization
         setupDeviceListener()
         setupDefaultDeviceListener()
+        syncAvailabilityListeners()
     }
     
     private func setupDeviceListener() {
@@ -169,8 +175,7 @@ class AudioManager: ObservableObject {
             _ inPropertyAddresses: UnsafePointer<AudioObjectPropertyAddress>
         ) in
             DispatchQueue.main.async {
-                self?.refreshAudioDevices()
-                self?.refreshInputDevices()
+                self?.refreshAllDevices()
             }
         }
         
@@ -205,9 +210,11 @@ class AudioManager: ObservableObject {
         ) in
             let selector = inPropertyAddresses.pointee.mSelector
             DispatchQueue.main.async {
-                if selector == kAudioHardwarePropertyDefaultOutputDevice {
-                    self?.currentDevice = AudioDevice.getCurrentDefault()
-                } else if selector == kAudioHardwarePropertyDefaultInputDevice {
+                // AirPods-in-case often changes the default without removing the
+                // HAL device. Re-enumerate so the row can flip to Disconnected.
+                self?.refreshAllDevices()
+                self?.scheduleFollowUpDeviceRefresh()
+                if selector == kAudioHardwarePropertyDefaultInputDevice {
                     self?.handleDefaultInputDeviceChanged()
                 }
             }
@@ -235,6 +242,7 @@ class AudioManager: ObservableObject {
     func refreshAllDevices() {
         refreshAudioDevices()
         refreshInputDevices()
+        syncAvailabilityListeners()
     }
     
     func refreshAudioDevices() {
@@ -259,8 +267,12 @@ class AudioManager: ObservableObject {
 
         saveSelectedDevices()
         currentDevice = AudioDevice.getCurrentDefault()
+        logConnectionChanges(previous: previousDevices, current: mergedDevices, kind: .output)
 
-        let newlyConnected = newlyConnectedDevices(previous: previousDevices, current: mergedDevices)
+        let newlyConnected = AudioDevice.uniquePreferredDevices(
+            newlyConnectedDevices(previous: previousDevices, current: mergedDevices),
+            kind: .output
+        )
         for device in newlyConnected where autoSwitchOutputDeviceNames.contains(device.name) {
             applyDefaultOutputDevice(device, notify: true)
         }
@@ -279,13 +291,14 @@ class AudioManager: ObservableObject {
         }
 
         let before = AudioDevice.getCurrentDefault()
-        let currentIndex = connectedDevices.firstIndex {
-            $0.id == before?.id || $0.name == before?.name
+        let currentIndex = connectedDevices.firstIndex { device in
+            guard let before else { return false }
+            return device.isSameAudioEndpoint(as: before)
         } ?? -1
         let nextIndex = (currentIndex + 1) % connectedDevices.count
         let nextDevice = connectedDevices[nextIndex]
 
-        print("Output switch: \(before?.name ?? "nil") → \(nextDevice.name)")
+        print("Output switch: \(before?.name ?? "nil") → \(nextDevice.name) id=\(nextDevice.id)")
         applyDefaultOutputDevice(nextDevice, notify: true)
         let after = AudioDevice.getCurrentDefault()
         currentDevice = after
@@ -337,9 +350,11 @@ class AudioManager: ObservableObject {
         requireOutput: Bool,
         requireInput: Bool
     ) -> [AudioDevice] {
-        AudioDevice.getAllDevices()
+        let kind: DeviceType = requireOutput ? .output : .input
+        let matches = AudioDevice.getAllDevices()
             .filter { device in
-                guard names.contains(device.name), device.isConnected else { return false }
+                guard names.contains(where: { AudioDeviceMatch.namesMatch($0, device.name) }),
+                      device.isConnected else { return false }
                 if requireOutput {
                     guard device.isOutput else { return false }
                     guard device.canBeSystemDefault(scope: kAudioDevicePropertyScopeOutput) else {
@@ -349,6 +364,7 @@ class AudioManager: ObservableObject {
                 if requireInput && !device.isInput { return false }
                 return true
             }
+        return AudioDevice.uniquePreferredDevices(matches, kind: kind)
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
     
@@ -382,6 +398,10 @@ class AudioManager: ObservableObject {
                 listener
             )
         }
+
+        removeAllAvailabilityListeners()
+        followUpRefreshWork.forEach { $0.cancel() }
+        availabilityRefreshWork?.cancel()
     }
     
     func saveSelectedDevices() {
@@ -415,8 +435,12 @@ class AudioManager: ObservableObject {
 
         saveSelectedInputDevices()
         currentInputDevice = AudioDevice.getCurrentDefaultInput()
+        logConnectionChanges(previous: previousDevices, current: mergedDevices, kind: .input)
 
-        let newlyConnected = newlyConnectedDevices(previous: previousDevices, current: mergedDevices)
+        let newlyConnected = AudioDevice.uniquePreferredDevices(
+            newlyConnectedDevices(previous: previousDevices, current: mergedDevices),
+            kind: .input
+        )
         for device in newlyConnected where autoSwitchInputDeviceNames.contains(device.name) {
             applyDefaultInputDevice(device, notify: true)
         }
@@ -542,20 +566,23 @@ class AudioManager: ObservableObject {
     }
 
     private func applyDefaultOutputDevice(_ device: AudioDevice, notify: Bool) {
-        let target = device.resolvedLiveDevice() ?? device
-        guard target.isConnected, target.setAsDefault() else {
-            print("Failed to set default output: \(device.name) id=\(device.id)")
+        let target = device.resolvedLiveDevice(kind: .output) ?? device
+        guard target.isConnected else {
+            print("Failed to set default output: \(device.name) id=\(device.id) (not connected)")
             return
         }
-        // Prefer system truth over optimistic assignment (some virtual devices ignore sets).
-        currentDevice = AudioDevice.getCurrentDefault() ?? target
+
+        let didStick = target.setAsDefaultOutputAndWait()
+        let actual = AudioDevice.getCurrentDefault()
+        currentDevice = actual ?? target
         NotificationCenter.default.post(name: NSNotification.Name("AudioDeviceSwitched"), object: currentDevice)
+
         if notify {
-            let actualName = currentDevice?.name ?? target.name
-            if actualName == target.name {
+            let actualName = actual?.name ?? target.name
+            if didStick, actual.map({ $0.isSameAudioEndpoint(as: target) }) ?? false {
                 postSwitchNotification(title: "Audio Output Changed", body: "Switched to \(actualName)")
             } else {
-                print("Output set requested=\(target.name) but system stayed on \(actualName)")
+                print("Output set requested=\(target.name) id=\(target.id) but system stayed on \(actualName)")
                 postSwitchNotification(
                     title: "Audio Output Unchanged",
                     body: "macOS kept \(actualName) instead of \(target.name)."
@@ -565,7 +592,7 @@ class AudioManager: ObservableObject {
     }
 
     private func applyDefaultInputDevice(_ device: AudioDevice, notify: Bool) {
-        let target = device.resolvedLiveDevice() ?? device
+        let target = device.resolvedLiveDevice(kind: .input) ?? device
         guard target.isConnected else {
             print("Failed to set default input: \(device.name) id=\(device.id) (not connected)")
             return
@@ -668,6 +695,121 @@ class AudioManager: ObservableObject {
             guard device.isConnected else { return false }
             let wasConnected = previous.first(where: { $0.name == device.name })?.isConnected ?? false
             return !wasConnected
+        }
+    }
+
+    private func logConnectionChanges(previous: [AudioDevice], current: [AudioDevice], kind: DeviceType) {
+        for device in current {
+            let wasConnected = previous.first(where: { $0.name == device.name })?.isConnected
+            guard let wasConnected, wasConnected != device.isConnected else { continue }
+            let label = kind == .output ? "Output" : "Input"
+            print("\(label) \(device.name) \(device.isConnected ? "connected" : "disconnected")")
+        }
+        for previousDevice in previous where current.contains(where: { $0.name == previousDevice.name }) == false {
+            guard previousDevice.isConnected else { continue }
+            let label = kind == .output ? "Output" : "Input"
+            print("\(label) \(previousDevice.name) disconnected")
+        }
+    }
+
+    private func scheduleFollowUpDeviceRefresh() {
+        followUpRefreshWork.forEach { $0.cancel() }
+        followUpRefreshWork = [0.35, 1.0].map { delay in
+            let work = DispatchWorkItem { [weak self] in
+                self?.refreshAllDevices()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+            return work
+        }
+    }
+
+    private func scheduleAvailabilityRefresh() {
+        availabilityRefreshWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.refreshAllDevices()
+        }
+        availabilityRefreshWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
+    }
+
+    private func syncAvailabilityListeners() {
+        if availabilityListenerBlock == nil {
+            availabilityListenerBlock = { [weak self] _, _ in
+                DispatchQueue.main.async {
+                    self?.scheduleAvailabilityRefresh()
+                }
+            }
+        }
+        guard let block = availabilityListenerBlock else { return }
+
+        let liveIDs = Set(AudioDevice.getAllDevices().map(\.id))
+        for deviceID in availabilityListenerIDs.subtracting(liveIDs) {
+            removeAvailabilityListener(deviceID)
+        }
+        for deviceID in liveIDs.subtracting(availabilityListenerIDs) {
+            addAvailabilityListener(deviceID, block: block)
+        }
+    }
+
+    private func addAvailabilityListener(_ deviceID: AudioDeviceID, block: @escaping AudioObjectPropertyListenerBlock) {
+        var addresses = [
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDeviceIsAlive,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            ),
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDeviceCanBeDefaultDevice,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain
+            ),
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyDeviceCanBeDefaultDevice,
+                mScope: kAudioDevicePropertyScopeInput,
+                mElement: kAudioObjectPropertyElementMain
+            ),
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyJackIsConnected,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            ),
+            AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyJackIsConnected,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain
+            )
+        ]
+
+        var added: [AudioObjectPropertyAddress] = []
+        for index in addresses.indices {
+            guard AudioObjectHasProperty(deviceID, &addresses[index]) else { continue }
+            let status = AudioObjectAddPropertyListenerBlock(deviceID, &addresses[index], nil, block)
+            if status == noErr {
+                added.append(addresses[index])
+            }
+        }
+
+        guard !added.isEmpty else { return }
+        availabilityListenerIDs.insert(deviceID)
+        availabilityAddresses[deviceID] = added
+    }
+
+    private func removeAvailabilityListener(_ deviceID: AudioDeviceID) {
+        guard let block = availabilityListenerBlock,
+              let addresses = availabilityAddresses.removeValue(forKey: deviceID) else {
+            availabilityListenerIDs.remove(deviceID)
+            return
+        }
+        for var address in addresses {
+            _ = AudioObjectRemovePropertyListenerBlock(deviceID, &address, nil, block)
+        }
+        availabilityListenerIDs.remove(deviceID)
+    }
+
+    private func removeAllAvailabilityListeners() {
+        let ids = availabilityListenerIDs
+        for deviceID in ids {
+            removeAvailabilityListener(deviceID)
         }
     }
 
