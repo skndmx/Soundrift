@@ -10,25 +10,29 @@ enum NativeAudioDeviceIcon {
     }
 
     /// Apple accessory product IDs from the Bluetooth PnP record.
+    /// See https://theapplewiki.com/wiki/Bluetooth_PIDs
     static func symbolName(forProductID productID: UInt16) -> String? {
         switch productID {
-        case 0x200A:
+        case 0x200A, 0x201F, 0x202D:
+            // AirPods Max (Lightning / USB-C) / AirPods Max 2
             return "airpods.max"
-        case 0x200E, 0x2014, 0x2024:
+        case 0x200E, 0x2014, 0x2024, 0x2027:
+            // AirPods Pro 1 / Pro 2 (Lightning) / Pro 2 (USB-C) / Pro 3
             return "airpods.pro"
         case 0x2013:
             return "airpods.gen3"
-        case 0x2027:
+        case 0x2019, 0x201B:
+            // AirPods 4 / AirPods 4 (ANC)
             return "airpods.gen4"
         case 0x2002, 0x200F:
             return "airpods"
-        case 0x2011:
+        case 0x200B, 0x200D:
             return "beats.powerbeatspro"
-        case 0x2019, 0x201D:
+        case 0x2011, 0x2016:
             return "beats.studiobuds"
-        case 0x201C:
+        case 0x2012:
             return "beats.fitpro"
-        case 0x200B, 0x200C, 0x2012:
+        case 0x200C, 0x2006, 0x2009, 0x2017, 0x2025:
             return "beats.headphones"
         default:
             return nil
