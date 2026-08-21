@@ -43,14 +43,6 @@ struct AudioDeviceRow: View {
         liveDevice.isConnected
     }
 
-    private var autoSwitchLabel: String {
-        kind == .output ? "Auto-switch output when connected" : "Auto-switch input when connected"
-    }
-
-    private var hasAutoSwitchEnabled: Bool {
-        audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind)
-    }
-
     private var volumeScope: AudioObjectPropertyScope {
         kind == .output ? kAudioDevicePropertyScopeOutput : kAudioDevicePropertyScopeInput
     }
@@ -86,15 +78,9 @@ struct AudioDeviceRow: View {
                             Text(device.name)
                                 .fontWeight(.medium)
                                 .foregroundStyle(isDeviceConnected ? .primary : .secondary)
-                            HStack(spacing: 8) {
-                                Text(isDeviceConnected ? "Connected" : "Disconnected")
-                                if hasAutoSwitchEnabled {
-                                    Label("Auto-switch", systemImage: "arrow.triangle.swap")
-                                        .labelStyle(.titleAndIcon)
-                                }
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            Text(isDeviceConnected ? "Connected" : "Disconnected")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -105,12 +91,6 @@ struct AudioDeviceRow: View {
                 .help(switchHelp)
 
                 HStack(spacing: 4) {
-                    AutomationOptionsButton(
-                        autoSwitchLabel: autoSwitchLabel,
-                        autoSwitchBinding: autoSwitchBinding,
-                        isActive: hasAutoSwitchEnabled
-                    )
-
                     Button(action: hideDevice) {
                         rowIcon("eye.slash")
                     }
@@ -200,13 +180,6 @@ struct AudioDeviceRow: View {
                 stopVolumeMonitor()
             }
         }
-    }
-
-    private var autoSwitchBinding: Binding<Bool> {
-        Binding(
-            get: { audioManager.isAutoSwitchOnConnectEnabled(device, kind: kind) },
-            set: { audioManager.setAutoSwitchOnConnect(device, kind: kind, enabled: $0) }
-        )
     }
 
     private var switchHelp: String {
@@ -312,37 +285,6 @@ struct AudioDeviceRow: View {
 
 private final class VolumeInteractionState {
     var isAdjustingVolume = false
-}
-
-private struct AutomationOptionsButton: View {
-    let autoSwitchLabel: String
-    let autoSwitchBinding: Binding<Bool>
-    let isActive: Bool
-
-    @State private var isPresented = false
-
-    var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            Image(systemName: "bolt.circle")
-                .font(.system(size: 14))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(isActive ? .cyan : .secondary)
-        }
-        .buttonStyle(.plain)
-        .help("Auto-switch when connected")
-        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("When this device connects")
-                    .font(.headline)
-
-                Toggle(autoSwitchLabel, isOn: autoSwitchBinding)
-            }
-            .padding(16)
-            .frame(width: 280)
-        }
-    }
 }
 
 struct DeviceListHeader: View {

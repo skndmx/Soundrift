@@ -78,8 +78,6 @@ class AudioManager: ObservableObject {
     private var preferredInputDeviceNames: Set<String> = []
     @Published private(set) var hiddenOutputDeviceNames: Set<String> = []
     @Published private(set) var hiddenInputDeviceNames: Set<String> = []
-    @Published private(set) var autoSwitchOutputDeviceNames: Set<String> = []
-    @Published private(set) var autoSwitchInputDeviceNames: Set<String> = []
 
     var visibleOutputDevices: [AudioDevice] {
         availableDevices.filter { !hiddenOutputDeviceNames.contains($0.name) }
@@ -123,11 +121,6 @@ class AudioManager: ObservableObject {
             liveDevices: liveOutputDevices
         )
         hiddenInputDeviceNames = loadHiddenDeviceNames(from: hiddenInputDeviceNamesKey)
-        autoSwitchOutputDeviceNames = remapGenericAirPlayNames(
-            DeviceAutomationStore.loadAutoSwitchOutputNames(),
-            liveDevices: liveOutputDevices
-        )
-        autoSwitchInputDeviceNames = DeviceAutomationStore.loadAutoSwitchInputNames()
         remapAirPlayPreferenceSets(liveDevices: liveOutputDevices)
 
         let outputDevices = mergeWithKnownDevices(
@@ -296,14 +289,6 @@ class AudioManager: ObservableObject {
         saveSelectedDevices()
         currentDevice = AudioDevice.getCurrentDefault()
         logConnectionChanges(previous: previousDevices, current: mergedDevices, kind: .output)
-
-        let newlyConnected = AudioDevice.uniquePreferredDevices(
-            newlyConnectedDevices(previous: previousDevices, current: mergedDevices),
-            kind: .output
-        )
-        for device in newlyConnected where autoSwitchOutputDeviceNames.contains(device.name) {
-            applyDefaultOutputDevice(device, notify: true)
-        }
     }
     
     func switchToNextDevice() {
@@ -465,14 +450,6 @@ class AudioManager: ObservableObject {
         saveSelectedInputDevices()
         currentInputDevice = AudioDevice.getCurrentDefaultInput()
         logConnectionChanges(previous: previousDevices, current: mergedDevices, kind: .input)
-
-        let newlyConnected = AudioDevice.uniquePreferredDevices(
-            newlyConnectedDevices(previous: previousDevices, current: mergedDevices),
-            kind: .input
-        )
-        for device in newlyConnected where autoSwitchInputDeviceNames.contains(device.name) {
-            applyDefaultInputDevice(device, notify: true)
-        }
     }
 
     func saveSelectedInputDevices() {
@@ -566,32 +543,6 @@ class AudioManager: ObservableObject {
         )
         saveHiddenDeviceNames(hiddenInputDeviceNames, to: hiddenInputDeviceNamesKey)
         saveSelectedInputDevices()
-    }
-
-    func isAutoSwitchOnConnectEnabled(_ device: AudioDevice, kind: DeviceType) -> Bool {
-        switch kind {
-        case .output: autoSwitchOutputDeviceNames.contains(device.name)
-        case .input: autoSwitchInputDeviceNames.contains(device.name)
-        }
-    }
-
-    func setAutoSwitchOnConnect(_ device: AudioDevice, kind: DeviceType, enabled: Bool) {
-        switch kind {
-        case .output:
-            if enabled {
-                autoSwitchOutputDeviceNames.insert(device.name)
-            } else {
-                autoSwitchOutputDeviceNames.remove(device.name)
-            }
-            DeviceAutomationStore.saveAutoSwitchOutputNames(autoSwitchOutputDeviceNames)
-        case .input:
-            if enabled {
-                autoSwitchInputDeviceNames.insert(device.name)
-            } else {
-                autoSwitchInputDeviceNames.remove(device.name)
-            }
-            DeviceAutomationStore.saveAutoSwitchInputNames(autoSwitchInputDeviceNames)
-        }
     }
 
     func selectOutputDevice(_ device: AudioDevice) {
@@ -732,14 +683,6 @@ class AudioManager: ObservableObject {
             if let error = error {
                 print("Error showing notification: \(error)")
             }
-        }
-    }
-
-    private func newlyConnectedDevices(previous: [AudioDevice], current: [AudioDevice]) -> [AudioDevice] {
-        current.filter { device in
-            guard device.isConnected else { return false }
-            let wasConnected = previous.first(where: { $0.name == device.name })?.isConnected ?? false
-            return !wasConnected
         }
     }
 
@@ -1036,12 +979,6 @@ class AudioManager: ObservableObject {
         if remappedHidden != hiddenOutputDeviceNames {
             hiddenOutputDeviceNames = remappedHidden
             saveHiddenDeviceNames(hiddenOutputDeviceNames, to: hiddenOutputDeviceNamesKey)
-        }
-
-        let remappedAutoSwitch = remapGenericAirPlayNames(autoSwitchOutputDeviceNames, liveDevices: liveDevices)
-        if remappedAutoSwitch != autoSwitchOutputDeviceNames {
-            autoSwitchOutputDeviceNames = remappedAutoSwitch
-            DeviceAutomationStore.saveAutoSwitchOutputNames(autoSwitchOutputDeviceNames)
         }
     }
 

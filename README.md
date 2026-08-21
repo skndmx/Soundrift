@@ -28,7 +28,6 @@ Built for people who hop between headphones, speakers, and mics all day.
 | **Global shortcuts** | Separate hotkeys for output and input rotation |
 | **Menu bar app** | Stays out of the way; close the window to hide the Dock icon |
 | **Hide clutter** | Tuck away virtual devices (Teams Audio, etc.) |
-| **Auto-switch** | Jump to a device the moment it connects |
 | **Launch at login** | Ready when you are |
 
 ## Install
@@ -56,7 +55,6 @@ Then right-click the app → **Open**.
 
 **Tips**
 
-- Bolt icon on a row → auto-switch when that device connects  
 - Eye icon → hide a device; restore it from **Hidden**  
 - **⌘W** (or the red close button) → back to menu-bar-only mode  
 - Quit from the menu bar when you want Soundrift fully exited  

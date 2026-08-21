@@ -15,22 +15,12 @@ struct SettingsView: View {
                     .fontWeight(.medium)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("1. Check devices to include in your shortcut")
-                    Text("2. Use the bolt icon for auto-switch when a device connects")
-                    Text("3. Tap the eye icon to hide devices you don't need")
-                    Text("4. Set keyboard shortcuts in the left sidebar")
-                    Text("5. Use the shortcuts to switch between devices")
+                    Text("2. Tap the eye icon to hide devices you don't need")
+                    Text("3. Set keyboard shortcuts in the left sidebar")
+                    Text("4. Use the shortcuts to switch between devices")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Auto-switch when connected")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("In the Output or Input tab, tap the bolt icon on a device and enable auto-switch. When that device connects, Soundrift sets it as the system default and sends a notification.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
