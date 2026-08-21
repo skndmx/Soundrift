@@ -47,8 +47,12 @@ struct AudioDeviceRow: View {
         kind == .output ? kAudioDevicePropertyScopeOutput : kAudioDevicePropertyScopeInput
     }
 
+    private var showsAsMuted: Bool {
+        isMuted || volume <= 0.001
+    }
+
     private var volumeIconName: String {
-        if isMuted {
+        if showsAsMuted {
             return kind == .output ? "speaker.slash.fill" : "mic.slash.fill"
         }
         return kind == .output ? "speaker.wave.2.fill" : "mic.fill"
@@ -106,23 +110,18 @@ struct AudioDeviceRow: View {
                         Button(action: toggleMute) {
                             Image(systemName: volumeIconName)
                                 .font(.system(size: 12))
-                                .foregroundStyle(isMuted ? .red : .secondary)
+                                .foregroundStyle(showsAsMuted ? .red : .secondary)
                                 .frame(width: 20, height: 20)
                         }
                         .buttonStyle(.plain)
                         .disabled(!supportsMute)
-                        .help(supportsMute ? (isMuted ? "Unmute" : "Mute") : "Mute not supported on this device")
+                        .help(supportsMute ? (showsAsMuted ? "Unmute" : "Mute") : "Mute not supported on this device")
 
                         Slider(
                             value: Binding(
                                 get: { Double(volume) },
                                 set: { newValue in
-                                    volume = Float(newValue)
-                                    if isMuted, volume > 0.001 {
-                                        isMuted = false
-                                        _ = device.setMute(false, scope: volumeScope)
-                                    }
-                                    _ = device.setVolume(volume, scope: volumeScope)
+                                    applyVolumeFromSlider(Float(newValue))
                                 }
                             ),
                             in: 0...1
@@ -132,11 +131,11 @@ struct AudioDeviceRow: View {
                                 refreshVolumeFromDevice(reprobeSupport: false)
                             }
                         }
-                        .opacity(isMuted ? 0.45 : 1)
+                        .opacity(showsAsMuted ? 0.45 : 1)
 
                         Text("\(Int((volume * 100).rounded()))%")
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(isMuted ? .red : .secondary)
+                            .foregroundStyle(showsAsMuted ? .red : .secondary)
                             .frame(width: 36, alignment: .trailing)
                     }
                     .help(kind == .output ? "Output volume for this device" : "Input gain for this device")
@@ -234,11 +233,31 @@ struct AudioDeviceRow: View {
         }
     }
 
+    private func applyVolumeFromSlider(_ newValue: Float) {
+        volume = max(0, min(1, newValue))
+        if volume <= 0.001 {
+            volume = 0
+            if supportsMute, !isMuted {
+                isMuted = true
+                _ = device.setMute(true, scope: volumeScope)
+            }
+        } else if isMuted {
+            isMuted = false
+            _ = device.setMute(false, scope: volumeScope)
+        }
+        _ = device.setVolume(volume, scope: volumeScope)
+    }
+
     private func toggleMute() {
         guard supportsMute else { return }
-        let newValue = !isMuted
+        let newValue = !showsAsMuted
         if device.setMute(newValue, scope: volumeScope) {
             isMuted = newValue
+            // Volume at 0 reads as muted in the UI; unmute restores a usable level.
+            if !newValue, volume <= 0.001 {
+                volume = 0.1
+                _ = device.setVolume(volume, scope: volumeScope)
+            }
         } else {
             refreshVolumeFromDevice(reprobeSupport: false)
         }
