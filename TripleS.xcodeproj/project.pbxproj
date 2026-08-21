@@ -422,7 +422,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinjin.Soundrift;
 				PRODUCT_NAME = Soundrift;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -452,7 +452,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kevinjin.Soundrift;
 				PRODUCT_NAME = Soundrift;
 				SWIFT_EMIT_LOC_STRINGS = YES;

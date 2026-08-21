@@ -33,19 +33,19 @@ Pushing a `v*` tag runs [.github/workflows/release.yml](.github/workflows/releas
 ```bash
 git push origin main
 
-git tag v1.4.0
-git push origin v1.4.0
+git tag v1.5.0
+git push origin v1.5.0
 ```
 
-The tag should match the app version in Xcode (`MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`, e.g. `1.4` + `0` → present as **1.4.0**).
+The tag should match the app version in Xcode (`MARKETING_VERSION` + `CURRENT_PROJECT_VERSION`, e.g. `1.5` + `0` → present as **1.5.0**).
 
 ### Fix a bad / incomplete release
 
 ```bash
-git tag -d v1.4.0
-git push origin :refs/tags/v1.4.0
-git tag v1.4.0
-git push origin v1.4.0
+git tag -d v1.5.0
+git push origin :refs/tags/v1.5.0
+git tag v1.5.0
+git push origin v1.5.0
 ```
 
 Releases: https://github.com/skndmx/Soundrift/releases  

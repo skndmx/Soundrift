@@ -82,7 +82,7 @@ struct MainView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(spacing: 2) {
-                Text("Version 1.4.0")
+                Text("Version 1.5.0")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
