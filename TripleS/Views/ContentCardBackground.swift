@@ -5,7 +5,7 @@ struct ContentCardBackground: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: cornerRadius))
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 

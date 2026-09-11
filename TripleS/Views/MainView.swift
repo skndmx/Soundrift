@@ -24,7 +24,6 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 0) {
             headerBar
-            Divider()
             Group {
                 switch tab {
                 case .devices:
@@ -37,7 +36,7 @@ struct MainView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.clear)
         .tint(SoundriftTheme.accent)
         .frame(minWidth: 560, minHeight: 440)
         .onAppear {
@@ -45,22 +44,25 @@ struct MainView: View {
         }
     }
 
+    /// Brand + tabs sit below the real titlebar. That strip still looks like
+    /// the same glass, but it is the only region that moves the window.
     private var headerBar: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 8) {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
                 Image("AppIcon2")
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 22, height: 22)
-                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 Text("Soundrift")
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
+                Spacer(minLength: 0)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Soundrift")
-
-            Spacer(minLength: 16)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
 
             Picker("Section", selection: $tab) {
                 ForEach(MainWindowTab.allCases) { section in
@@ -70,9 +72,9 @@ struct MainView: View {
             .pickerStyle(.segmented)
             .frame(width: 280)
             .labelsHidden()
+            .padding(.bottom, 8)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
     }
 }
 

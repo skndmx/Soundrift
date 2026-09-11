@@ -21,14 +21,7 @@ struct HiddenDevicesSection: View {
                             }
                         }
                     }
-                    .background(
-                        RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous)
-                            .fill(Color.primary.opacity(0.04))
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-                    }
+                    .soundriftGlassCard()
                     .padding(.top, 6)
                 } label: {
                     HStack(spacing: 8) {
@@ -72,7 +65,7 @@ struct HiddenDeviceRow: View {
                 .foregroundStyle(.tertiary)
 
             Button("Unhide", action: onShow)
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .controlSize(.small)
         }
         .padding(.horizontal, 12)

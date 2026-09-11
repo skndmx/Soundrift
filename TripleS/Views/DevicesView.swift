@@ -35,7 +35,8 @@ struct DevicesView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            GlassEffectContainer(spacing: 18) {
+                VStack(alignment: .leading, spacing: 18) {
                 Picker("Device kind", selection: $kind) {
                     Text("Output").tag(DeviceType.output)
                     Text("Input").tag(DeviceType.input)
@@ -80,6 +81,7 @@ struct DevicesView: View {
             .padding(.vertical, 16)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
+            }
         }
     }
 }
@@ -91,14 +93,6 @@ struct GroupedDeviceList<Content: View>: View {
         VStack(spacing: 0) {
             content()
         }
-        .background(
-            RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous))
+        .soundriftGlassCard()
     }
 }

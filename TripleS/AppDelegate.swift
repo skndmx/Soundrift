@@ -3,6 +3,7 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var mainWindow: NSWindow?
+    private var mainHostingController: NSViewController?
     private var keyDownMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -13,19 +14,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func setupMainWindow() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: SoundriftTheme.windowWidth, height: SoundriftTheme.windowHeight),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "Soundrift"
-        window.titleVisibility = .hidden
         window.minSize = NSSize(width: 560, height: 440)
         window.isReleasedWhenClosed = false
-        window.toolbarStyle = .unified
-        window.contentViewController = NSHostingController(
-            rootView: MainView()
-                .frame(minWidth: 560, minHeight: 440)
-        )
+
+        let hostingController = NSHostingController(rootView: MainView())
+        hostingController.safeAreaRegions = []
+        mainHostingController = hostingController
+        SoundriftWindowChrome.applyLiquidGlass(to: window, hostingView: hostingController.view)
         window.delegate = self
         window.setFrameAutosaveName("SoundriftMainWindow")
         window.center()

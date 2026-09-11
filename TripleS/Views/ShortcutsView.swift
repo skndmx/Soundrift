@@ -5,7 +5,8 @@ struct ShortcutsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            GlassEffectContainer(spacing: 16) {
+                VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Keyboard shortcuts")
                         .font(.title2.weight(.semibold))
@@ -36,15 +37,7 @@ struct ShortcutsView: View {
                         keycaps: hotkeys.muteKeycaps
                     )
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous)
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: SoundriftTheme.groupedCornerRadius, style: .continuous))
+                .soundriftGlassCard()
 
                 if let message = visibleError {
                     Text(message)
@@ -67,6 +60,7 @@ struct ShortcutsView: View {
             .padding(.vertical, 16)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
+            }
         }
     }
 
@@ -101,14 +95,15 @@ struct ShortcutsView: View {
                 Button("Cancel") {
                     hotkeys.stopRecording()
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(SoundriftTheme.accent)
+                .buttonStyle(.glass)
+                .controlSize(.small)
+                .tint(SoundriftTheme.recordingRed)
             } else {
                 Button("Change") {
                     hotkeys.beginRecording(target)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(SoundriftTheme.accent)
+                .buttonStyle(.glass)
+                .controlSize(.small)
             }
         }
         .padding(.horizontal, 14)
@@ -122,20 +117,18 @@ struct HotkeyKeycapStack: View {
     let symbols: [String]
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
-                Text(symbol)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .frame(minWidth: 22, minHeight: 22)
-                    .padding(.horizontal, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(Color.primary.opacity(0.08))
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                    }
+        GlassEffectContainer(spacing: 4) {
+            HStack(spacing: 4) {
+                ForEach(Array(symbols.enumerated()), id: \.offset) { _, symbol in
+                    Text(symbol)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .frame(minWidth: 22, minHeight: 22)
+                        .padding(.horizontal, 6)
+                        .glassEffect(
+                            .regular,
+                            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        )
+                }
             }
         }
         .accessibilityLabel(symbols.joined())

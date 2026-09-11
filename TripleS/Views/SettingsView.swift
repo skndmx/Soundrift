@@ -6,7 +6,8 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            GlassEffectContainer(spacing: 18) {
+                VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("General")
                         .font(.headline)
@@ -63,6 +64,7 @@ struct SettingsView: View {
             .padding(.vertical, 16)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
+            }
         }
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import CoreAudio
 
 struct ActiveDeviceHero: View {
@@ -26,14 +27,7 @@ struct ActiveDeviceHero: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(minHeight: 52)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(SoundriftTheme.accent.opacity(0.14))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(SoundriftTheme.accent.opacity(0.22), lineWidth: 1)
-        }
+        .soundriftHeroGlass()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(device.name), Active")
     }
@@ -43,15 +37,15 @@ struct ActiveStatusPill: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(SoundriftTheme.activeGreen)
+                .fill(.white)
                 .frame(width: 6, height: 6)
             Text("Active")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(SoundriftTheme.activeGreen)
+                .foregroundStyle(.white)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background(SoundriftTheme.activeGreen.opacity(0.16), in: Capsule())
+        .background(SoundriftTheme.activeGreen, in: Capsule())
     }
 }
 
@@ -98,21 +92,22 @@ struct DeviceVolumeSlider: View {
     }
 
     private var volumeSlider: some View {
-        Slider(
+        AppKitVolumeSlider(
             value: Binding(
                 get: { Double(volume) },
                 set: { applyVolumeFromSlider(Float($0)) }
             ),
-            in: 0...1
-        ) { editing in
-            interaction.isAdjustingVolume = editing
-            if !editing {
-                refreshVolumeFromDevice(reprobeSupport: false)
+            onEditingChanged: { editing in
+                interaction.isAdjustingVolume = editing
+                if !editing {
+                    refreshVolumeFromDevice(reprobeSupport: false)
+                }
             }
-        }
+        )
         .controlSize(.small)
         .tint(SoundriftTheme.accent)
         .frame(maxWidth: style == .hero ? 160 : .infinity)
+        .frame(height: 16)
         .opacity(showsAsMuted ? 0.45 : 1)
     }
 
@@ -250,4 +245,74 @@ struct DeviceVolumeSlider: View {
 
 final class VolumeInteractionState {
     var isAdjustingVolume = false
+}
+
+/// AppKit slider so knob drags are not treated as window-background drags.
+private struct AppKitVolumeSlider: NSViewRepresentable {
+    var value: Binding<Double>
+    var onEditingChanged: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(value: value, onEditingChanged: onEditingChanged)
+    }
+
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = WindowPinnedSlider()
+        slider.minValue = 0
+        slider.maxValue = 1
+        slider.doubleValue = value.wrappedValue
+        slider.isContinuous = true
+        slider.controlSize = .small
+        slider.target = context.coordinator
+        slider.action = #selector(Coordinator.valueChanged(_:))
+        slider.onEditingChanged = { editing in
+            context.coordinator.isEditing = editing
+            onEditingChanged(editing)
+        }
+        slider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        slider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return slider
+    }
+
+    func updateNSView(_ slider: NSSlider, context: Context) {
+        context.coordinator.value = value
+        context.coordinator.onEditingChanged = onEditingChanged
+        if let pinned = slider as? WindowPinnedSlider {
+            pinned.onEditingChanged = { editing in
+                context.coordinator.isEditing = editing
+                onEditingChanged(editing)
+            }
+        }
+        guard !context.coordinator.isEditing else { return }
+        if abs(slider.doubleValue - value.wrappedValue) > 0.002 {
+            slider.doubleValue = value.wrappedValue
+        }
+    }
+
+    final class Coordinator: NSObject {
+        var value: Binding<Double>
+        var onEditingChanged: (Bool) -> Void
+        var isEditing = false
+
+        init(value: Binding<Double>, onEditingChanged: @escaping (Bool) -> Void) {
+            self.value = value
+            self.onEditingChanged = onEditingChanged
+        }
+
+        @objc func valueChanged(_ sender: NSSlider) {
+            value.wrappedValue = sender.doubleValue
+        }
+    }
+}
+
+private final class WindowPinnedSlider: NSSlider {
+    var onEditingChanged: ((Bool) -> Void)?
+
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func mouseDown(with event: NSEvent) {
+        onEditingChanged?(true)
+        super.mouseDown(with: event)
+        onEditingChanged?(false)
+    }
 }
