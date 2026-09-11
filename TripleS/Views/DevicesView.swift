@@ -52,7 +52,7 @@ struct DevicesView: View {
                     Text("In rotation")
                         .font(.headline)
 
-                    Text("Checked devices cycle with your shortcut")
+                    Text("Checked devices cycle with your shortcut. Adjust volume or mute before switching.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 

@@ -20,7 +20,8 @@ struct ActiveDeviceHero: View {
 
             Spacer(minLength: 12)
 
-            DeviceVolumeSlider(device: device, kind: kind)
+            DeviceVolumeSlider(device: device, kind: kind, style: .hero)
+                .id("\(kind)-\(device.id)")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -54,9 +55,15 @@ struct ActiveStatusPill: View {
     }
 }
 
+enum DeviceVolumeControlStyle {
+    case hero
+    case row
+}
+
 struct DeviceVolumeSlider: View {
     let device: AudioDevice
     let kind: DeviceType
+    var style: DeviceVolumeControlStyle = .hero
 
     @State private var volume: Float = 0
     @State private var supportsVolume = false
@@ -80,7 +87,7 @@ struct DeviceVolumeSlider: View {
     }
 
     private var showsAsMuted: Bool {
-        isMuted || volume <= 0.001
+        isMuted || (supportsVolume && volume <= 0.001)
     }
 
     private var volumeIconName: String {
@@ -90,38 +97,63 @@ struct DeviceVolumeSlider: View {
         return kind == .output ? "speaker.wave.2.fill" : "mic.fill"
     }
 
+    private var volumeSlider: some View {
+        Slider(
+            value: Binding(
+                get: { Double(volume) },
+                set: { applyVolumeFromSlider(Float($0)) }
+            ),
+            in: 0...1
+        ) { editing in
+            interaction.isAdjustingVolume = editing
+            if !editing {
+                refreshVolumeFromDevice(reprobeSupport: false)
+            }
+        }
+        .controlSize(.small)
+        .tint(SoundriftTheme.accent)
+        .frame(maxWidth: style == .hero ? 160 : .infinity)
+        .opacity(showsAsMuted ? 0.45 : 1)
+    }
+
+    private var muteButton: some View {
+        Button(action: toggleMute) {
+            Image(systemName: volumeIconName)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(showsAsMuted ? SoundriftTheme.recordingRed : .secondary)
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.plain)
+        .disabled(!supportsMute)
+        .help(supportsMute ? (showsAsMuted ? "Unmute" : "Mute") : "Mute not supported on this device")
+    }
+
     var body: some View {
         Group {
-            if liveDevice.isConnected, supportsVolume {
+            if liveDevice.isConnected, supportsVolume || supportsMute {
                 HStack(spacing: 8) {
-                    Slider(
-                        value: Binding(
-                            get: { Double(volume) },
-                            set: { applyVolumeFromSlider(Float($0)) }
-                        ),
-                        in: 0...1
-                    ) { editing in
-                        interaction.isAdjustingVolume = editing
-                        if !editing {
-                            refreshVolumeFromDevice(reprobeSupport: false)
-                        }
+                    if style == .row {
+                        muteButton
                     }
-                    .controlSize(.small)
-                    .tint(SoundriftTheme.accent)
-                    .frame(maxWidth: 160)
-                    .opacity(showsAsMuted ? 0.45 : 1)
-
-                    Button(action: toggleMute) {
-                        Image(systemName: volumeIconName)
-                            .font(.system(size: 12, weight: .medium))
+                    if supportsVolume {
+                        volumeSlider
+                    }
+                    if style == .row, supportsVolume {
+                        Text("\(Int((volume * 100).rounded()))%")
+                            .font(.caption.monospacedDigit())
                             .foregroundStyle(showsAsMuted ? SoundriftTheme.recordingRed : .secondary)
-                            .frame(width: 18, height: 18)
+                            .frame(width: 36, alignment: .trailing)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!supportsMute)
-                    .help(supportsMute ? (showsAsMuted ? "Unmute" : "Mute") : "Mute not supported on this device")
+                    if style == .hero {
+                        muteButton
+                    }
                 }
                 .help(kind == .output ? "Output volume for this device" : "Input gain for this device")
+            } else if style == .row, liveDevice.isConnected {
+                Text("No volume control on this device")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .help("macOS does not expose a working volume control for this device (common for Continuity mics and some virtual devices like Teams input).")
             }
         }
         .onAppear {
@@ -131,10 +163,11 @@ struct DeviceVolumeSlider: View {
         .onDisappear {
             stopVolumeMonitor()
         }
+        .onChange(of: kind) { _, _ in
+            resetVolumeObservation()
+        }
         .onChange(of: liveDevice.id) { _, _ in
-            didProbeSupport = false
-            refreshVolumeFromDevice(reprobeSupport: true)
-            startVolumeMonitor()
+            resetVolumeObservation()
         }
         .onChange(of: liveDevice.isConnected) { _, connected in
             didProbeSupport = false
@@ -167,7 +200,7 @@ struct DeviceVolumeSlider: View {
         let newValue = !showsAsMuted
         if device.setMute(newValue, scope: volumeScope) {
             isMuted = newValue
-            if !newValue, volume <= 0.001 {
+            if !newValue, supportsVolume, volume <= 0.001 {
                 volume = 0.1
                 _ = device.setVolume(volume, scope: volumeScope)
             }
@@ -194,10 +227,16 @@ struct DeviceVolumeSlider: View {
         }
     }
 
+    private func resetVolumeObservation() {
+        didProbeSupport = false
+        refreshVolumeFromDevice(reprobeSupport: true)
+        startVolumeMonitor()
+    }
+
     private func startVolumeMonitor() {
         stopVolumeMonitor()
         guard liveDevice.isConnected else { return }
-        volumeMonitor = device.makeVolumeMonitor(scope: volumeScope) { [interaction] in
+        volumeMonitor = liveDevice.makeVolumeMonitor(scope: volumeScope) { [interaction] in
             guard !interaction.isAdjustingVolume else { return }
             refreshVolumeFromDevice(reprobeSupport: false)
         }

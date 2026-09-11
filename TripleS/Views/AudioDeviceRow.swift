@@ -42,7 +42,7 @@ struct AudioDeviceRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             Button {
                 guard isDeviceConnected else { return }
                 setSelected(!isSelected)
@@ -55,50 +55,53 @@ struct AudioDeviceRow: View {
             .buttonStyle(.plain)
             .disabled(!isDeviceConnected)
             .help(isDeviceConnected ? "Include in shortcut rotation" : "Connect device to include in rotation")
+            .padding(.top, 2)
 
-            Button(action: switchToThisDevice) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    Image(systemName: liveDevice.glyphSystemName(kind: kind))
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(isDeviceConnected ? .primary : .secondary)
-                        .frame(width: 18, height: 18)
+                    Button(action: switchToThisDevice) {
+                        HStack(spacing: 8) {
+                            Image(systemName: liveDevice.glyphSystemName(kind: kind))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(isDeviceConnected ? .primary : .secondary)
+                                .frame(width: 18, height: 18)
 
-                    Text(device.name)
-                        .font(.body)
-                        .foregroundStyle(isDeviceConnected ? .primary : .secondary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(device.name)
+                                .font(.body)
+                                .foregroundStyle(isDeviceConnected ? .primary : .secondary)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isDeviceConnected)
+                    .help(switchHelp)
+
+                    Text(statusText)
+                        .font(.subheadline)
+                        .foregroundStyle(statusColor)
+                        .frame(minWidth: 72, alignment: .trailing)
+
+                    Button(action: hideDevice) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Hide this device from the list")
                 }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(!isDeviceConnected)
-            .help(switchHelp)
 
-            Text(statusText)
-                .font(.subheadline)
-                .foregroundStyle(statusColor)
-                .frame(minWidth: 88, alignment: .trailing)
-
-            if isCurrentDevice, isDeviceConnected {
-                Image(systemName: kind == .output ? "speaker.wave.2" : "mic")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(SoundriftTheme.accent)
-                    .frame(width: 18, height: 18)
-                    .help(kind == .output ? "Current output" : "Current input")
+                if isDeviceConnected {
+                    DeviceVolumeSlider(device: liveDevice, kind: kind, style: .row)
+                        .id("\(kind)-\(liveDevice.id)")
+                        .padding(.leading, 26)
+                }
             }
-
-            Button(action: hideDevice) {
-                Image(systemName: "eye.slash")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.plain)
-            .help("Hide this device from the list")
         }
         .padding(.horizontal, 12)
-        .frame(height: SoundriftTheme.rowHeight)
+        .padding(.vertical, 8)
         .background(rowBackground)
         .opacity(isDeviceConnected ? 1 : 0.55)
     }
