@@ -48,10 +48,12 @@ struct MainView: View {
     private var headerBar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "headphones")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(SoundriftTheme.accent)
+                Image("AppIcon2")
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: 22, height: 22)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 Text("Soundrift")
                     .font(.headline)
             }
