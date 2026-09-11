@@ -36,7 +36,7 @@ struct HiddenDevicesSection: View {
 
                 if isExpanded {
                     VStack(spacing: 0) {
-                        ForEach(Array(devices.enumerated()), id: \.element.id) { index, device in
+                        ForEach(Array(devices.enumerated()), id: \.element.endpointID) { index, device in
                             HiddenDeviceRow(device: device) {
                                 onShow(device)
                             }

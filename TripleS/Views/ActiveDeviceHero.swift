@@ -22,7 +22,7 @@ struct ActiveDeviceHero: View {
             Spacer(minLength: 12)
 
             DeviceVolumeSlider(device: device, kind: kind, style: .hero)
-                .id("\(kind)-\(device.id)")
+                .id("\(kind)-\(device.endpointID)")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -71,9 +71,7 @@ struct DeviceVolumeSlider: View {
         let pool = kind == .output
             ? AudioManager.shared.availableDevices
             : AudioManager.shared.availableInputDevices
-        return pool.first { $0.id == device.id }
-            ?? pool.first { AudioDeviceMatch.namesMatch($0.name, device.name) }
-            ?? device
+        return device.matchingDevice(in: pool) ?? device
     }
 
     private var volumeScope: AudioObjectPropertyScope {

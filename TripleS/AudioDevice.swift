@@ -78,7 +78,10 @@ struct AudioDevice: Identifiable, Hashable {
     }
 
     init(saved: SavedDevice) {
-        self.id = saved.id
+        // HAL IDs are recycled. A remembered jack named "External Headphones"
+        // must not keep the id now used by the HDMI monitor, or list identity,
+        // volume, and selection all attach to the wrong device.
+        self.id = 0
         self.name = saved.name
         self.uid = ""
         self.isOutput = saved.isOutput
@@ -416,12 +419,18 @@ struct AudioDevice: Identifiable, Hashable {
         return result == noErr ? AudioDevice(deviceID: deviceID) : nil
     }
     
+    /// HAL `id` is reused when devices come and go. Name + UID stays stable.
+    var endpointID: String {
+        let uidPart = uid.isEmpty ? "remembered" : uid
+        return uidPart + "\u{1e}" + AudioDeviceMatch.normalizedName(name).lowercased()
+    }
+
     func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+        hasher.combine(endpointID)
     }
     
     static func == (lhs: AudioDevice, rhs: AudioDevice) -> Bool {
-        return lhs.id == rhs.id
+        lhs.endpointID == rhs.endpointID
     }
     
     var hasOutputChannels: Bool {

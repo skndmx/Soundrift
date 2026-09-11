@@ -229,6 +229,35 @@ struct AudioDeviceSelectionTests {
         )
     }
 
+    @Test func recycledHALIDsAreDistinctEndpoints() {
+        var rememberedJack = AudioDevice(previewWithName: "External Headphones")
+        rememberedJack.id = 116
+        rememberedJack.uid = ""
+        rememberedJack.isConnected = false
+
+        var hdmiMonitor = AudioDevice(previewWithName: "XG2431")
+        hdmiMonitor.id = 116
+        hdmiMonitor.uid = "5A633B3B-0000-0000-1F1F-010380351E78"
+        hdmiMonitor.isConnected = true
+
+        #expect(rememberedJack != hdmiMonitor)
+        #expect(rememberedJack.endpointID != hdmiMonitor.endpointID)
+        #expect(!rememberedJack.isSameAudioEndpoint(as: hdmiMonitor))
+        #expect(hdmiMonitor.matchingDevice(in: [rememberedJack, hdmiMonitor])?.name == "XG2431")
+    }
+
+    @Test func rememberedDeviceDropsStaleHALID() {
+        let saved = SavedDevice(from: {
+            var device = AudioDevice(previewWithName: "External Headphones")
+            device.id = 116
+            return device
+        }())
+        let remembered = AudioDevice(saved: saved)
+        #expect(remembered.id == 0)
+        #expect(remembered.name == "External Headphones")
+        #expect(!remembered.isConnected)
+    }
+
     @Test func microsoftTeamsIsNotAppleTVIcon() {
         var device = AudioDevice(previewWithName: "Microsoft Teams Audio")
         device.isAirPlay = true

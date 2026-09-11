@@ -96,7 +96,11 @@ extension AudioDevice {
         if !uid.isEmpty, let uidMatch = matches.first(where: { $0.uid == uid }) {
             return uidMatch
         }
-        return matches.first { $0.id == id } ?? matches.first
+        return matches.first
+    }
+
+    func matchingDevice(in pool: [AudioDevice]) -> AudioDevice? {
+        pool.first { $0.isSameAudioEndpoint(as: self) }
     }
 
     static func preferredLiveDevice(from devices: [AudioDevice], kind: DeviceType) -> AudioDevice? {

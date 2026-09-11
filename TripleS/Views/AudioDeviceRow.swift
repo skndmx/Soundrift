@@ -25,9 +25,7 @@ struct AudioDeviceRow: View {
 
     private var liveDevice: AudioDevice {
         let pool = kind == .output ? audioManager.availableDevices : audioManager.availableInputDevices
-        return pool.first { $0.id == device.id }
-            ?? pool.first { AudioDeviceMatch.namesMatch($0.name, device.name) }
-            ?? device
+        return device.matchingDevice(in: pool) ?? device
     }
 
     private var isDeviceConnected: Bool {
@@ -95,7 +93,7 @@ struct AudioDeviceRow: View {
 
                 if isDeviceConnected {
                     DeviceVolumeSlider(device: liveDevice, kind: kind, style: .row)
-                        .id("\(kind)-\(liveDevice.id)")
+                        .id("\(kind)-\(liveDevice.endpointID)")
                         .padding(.leading, 26)
                 }
             }

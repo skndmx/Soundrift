@@ -59,7 +59,7 @@ struct DevicesView: View {
 
                     if !visibleDevices.isEmpty {
                         GroupedDeviceList {
-                            ForEach(Array(visibleDevices.enumerated()), id: \.element.id) { index, device in
+                            ForEach(Array(visibleDevices.enumerated()), id: \.element.endpointID) { index, device in
                                 AudioDeviceRow(device: device, kind: kind)
                                 if index < visibleDevices.count - 1 {
                                     Divider()
