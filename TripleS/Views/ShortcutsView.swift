@@ -49,7 +49,7 @@ struct ShortcutsView: View {
                     Image(systemName: "lightbulb")
                         .foregroundStyle(SoundriftTheme.accent)
                         .font(.system(size: 13, weight: .medium))
-                    Text("Tip: avoid shortcuts already used by Zoom, Teams, or Mission Control.")
+                    Text("Tip: avoid shortcuts already used by MacOS or other apps.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

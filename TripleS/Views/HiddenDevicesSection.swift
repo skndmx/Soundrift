@@ -4,12 +4,37 @@ struct HiddenDevicesSection: View {
     let devices: [AudioDevice]
     let onShow: (AudioDevice) -> Void
 
-    @State private var isExpanded = true
+    @State private var isExpanded = false
 
     var body: some View {
         if !devices.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                DisclosureGroup(isExpanded: $isExpanded) {
+                Button {
+                    withAnimation(.snappy) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        Image(systemName: "eye.slash")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Hidden (\(devices.count))")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Hidden devices, \(devices.count)")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(isExpanded ? "Collapse" : "Expand")
+
+                if isExpanded {
                     VStack(spacing: 0) {
                         ForEach(Array(devices.enumerated()), id: \.element.id) { index, device in
                             HiddenDeviceRow(device: device) {
@@ -23,15 +48,6 @@ struct HiddenDevicesSection: View {
                     }
                     .soundriftGlassCard()
                     .padding(.top, 6)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "eye.slash")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 12, weight: .medium))
-                        Text("Hidden (\(devices.count))")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
                 }
 
                 Text("Hidden devices won't appear above or in your shortcut rotation.")
