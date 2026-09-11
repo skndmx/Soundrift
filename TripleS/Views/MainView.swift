@@ -49,12 +49,7 @@ struct MainView: View {
     private var headerBar: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                Image("AppIcon2")
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                SoundriftHeaderIcon(pointSize: 44)
                 Text("Soundrift")
                     .font(.title3.weight(.semibold))
                 Spacer(minLength: 0)
@@ -75,6 +70,52 @@ struct MainView: View {
             .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// Downsamples the 1024 AppIcon2 asset at the window's backing scale so the
+/// header stays sharp on Retina. SwiftUI `Image.resizable()` otherwise
+/// rasterizes a 1× 44 px bitmap and the display stretches it.
+private struct SoundriftHeaderIcon: View {
+    var pointSize: CGFloat = 44
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Image(nsImage: Self.rasterized(pointSize: pointSize, scale: displayScale))
+            .frame(width: pointSize, height: pointSize)
+    }
+
+    private static func rasterized(pointSize: CGFloat, scale: CGFloat) -> NSImage {
+        let pixels = max(1, Int((pointSize * max(scale, 1)).rounded()))
+        let size = NSSize(width: pointSize, height: pointSize)
+        guard let source = NSImage(named: "AppIcon2"),
+              let cgSource = source.cgImage(forProposedRect: nil, context: nil, hints: [
+                  .interpolation: NSImageInterpolation.high,
+              ])
+        else {
+            return NSImage(size: size)
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: nil,
+            width: pixels,
+            height: pixels,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return source
+        }
+
+        context.interpolationQuality = .high
+        context.setAllowsAntialiasing(true)
+        context.setShouldAntialias(true)
+        context.draw(cgSource, in: CGRect(x: 0, y: 0, width: pixels, height: pixels))
+
+        guard let output = context.makeImage() else { return source }
+        return NSImage(cgImage: output, size: size)
     }
 }
 
