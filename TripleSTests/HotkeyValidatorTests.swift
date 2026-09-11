@@ -3,15 +3,20 @@ import Testing
 @testable import Soundrift
 
 struct HotkeyValidatorTests {
+    private let commandShift = Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
+    private let controlOption = Int(NSEvent.ModifierFlags.control.rawValue | NSEvent.ModifierFlags.option.rawValue)
+
     @Test func rejectsCommandV() {
         let result = HotkeyValidator.validate(
             keyCode: kVK_ANSI_V,
             modifiers: Int(NSEvent.ModifierFlags.command.rawValue),
             outputKeyCode: kVK_UpArrow,
-            outputModifiers: Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue),
+            outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
-            inputModifiers: Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue),
-            assigningToInput: false
+            inputModifiers: commandShift,
+            muteKeyCode: kVK_ANSI_M,
+            muteModifiers: controlOption,
+            assigningTo: .output
         )
 
         guard case .failure(.reservedSystemShortcut) = result else {
@@ -21,37 +26,77 @@ struct HotkeyValidatorTests {
     }
 
     @Test func allowsCommandShiftUpArrow() {
-        let modifiers = Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
         let result = HotkeyValidator.validate(
             keyCode: kVK_UpArrow,
-            modifiers: modifiers,
+            modifiers: commandShift,
             outputKeyCode: kVK_DownArrow,
-            outputModifiers: modifiers,
+            outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
-            inputModifiers: modifiers,
-            assigningToInput: false
+            inputModifiers: commandShift,
+            muteKeyCode: kVK_ANSI_M,
+            muteModifiers: controlOption,
+            assigningTo: .output
         )
 
-        guard case .failure(.duplicateWithInput) = result else {
-            Issue.record("Expected duplicate-with-input failure")
+        guard case .success = result else {
+            Issue.record("Expected Command-Shift-Up to be allowed")
             return
         }
     }
 
     @Test func rejectsDuplicateInputShortcut() {
-        let modifiers = Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
         let result = HotkeyValidator.validate(
             keyCode: kVK_UpArrow,
-            modifiers: modifiers,
+            modifiers: commandShift,
             outputKeyCode: kVK_UpArrow,
-            outputModifiers: modifiers,
+            outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
-            inputModifiers: modifiers,
-            assigningToInput: true
+            inputModifiers: commandShift,
+            muteKeyCode: kVK_ANSI_M,
+            muteModifiers: controlOption,
+            assigningTo: .input
         )
 
         guard case .failure(.duplicateWithOutput) = result else {
             Issue.record("Expected duplicate-with-output failure")
+            return
+        }
+    }
+
+    @Test func rejectsDuplicateMuteShortcut() {
+        let result = HotkeyValidator.validate(
+            keyCode: kVK_ANSI_M,
+            modifiers: controlOption,
+            outputKeyCode: kVK_UpArrow,
+            outputModifiers: commandShift,
+            inputKeyCode: kVK_DownArrow,
+            inputModifiers: commandShift,
+            muteKeyCode: kVK_ANSI_M,
+            muteModifiers: controlOption,
+            assigningTo: .output
+        )
+
+        guard case .failure(.duplicateWithMute) = result else {
+            Issue.record("Expected duplicate-with-mute failure")
+            return
+        }
+    }
+
+    @Test func allowsControlOptionMForMute() {
+        let result = HotkeyValidator.validate(
+            keyCode: kVK_ANSI_M,
+            modifiers: controlOption,
+            outputKeyCode: kVK_UpArrow,
+            outputModifiers: commandShift,
+            inputKeyCode: kVK_DownArrow,
+            inputModifiers: commandShift,
+            muteKeyCode: kVK_ANSI_N,
+            muteModifiers: controlOption,
+            assigningTo: .mute
+        )
+
+        guard case .success = result else {
+            Issue.record("Expected Control-Option-M to be allowed for mute")
             return
         }
     }

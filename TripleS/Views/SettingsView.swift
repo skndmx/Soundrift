@@ -17,7 +17,7 @@ struct SettingsView: View {
                     Text("1. Check devices to include in your shortcut")
                     Text("2. Tap the eye icon to hide devices you don't need")
                     Text("3. Set keyboard shortcuts in the left sidebar")
-                    Text("4. Use the shortcuts to switch between devices")
+                    Text("4. Use the shortcuts to switch devices or mute the microphone")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)

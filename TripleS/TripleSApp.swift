@@ -65,6 +65,12 @@ private struct SoundriftMenuBarMenu: View {
 
         Divider()
 
+        Button(muteMicrophoneTitle) {
+            DeviceSwitchManager.shared.toggleMicrophoneMute()
+        }
+
+        Divider()
+
         Button("Show Main Window", action: showMainWindow)
 
         Divider()
@@ -72,5 +78,9 @@ private struct SoundriftMenuBarMenu: View {
         Button("Quit Soundrift") {
             NSApp.terminate(nil)
         }
+    }
+
+    private var muteMicrophoneTitle: String {
+        AudioManager.shared.isCurrentInputMuted() ? "Unmute Microphone" : "Mute Microphone"
     }
 }

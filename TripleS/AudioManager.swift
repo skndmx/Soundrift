@@ -561,6 +561,64 @@ class AudioManager: ObservableObject {
         applyDefaultInputDevice(device, notify: true)
     }
 
+    /// Toggles mute on the current default microphone. Matches SoundSwitch: input only.
+    @discardableResult
+    func toggleCurrentInputMute() -> Bool {
+        let device = AudioDevice.getCurrentDefaultInput() ?? currentInputDevice
+        guard let device else {
+            postSwitchNotification(
+                title: "Microphone Mute Unavailable",
+                body: "No input device is selected."
+            )
+            return false
+        }
+
+        let target = device.resolvedLiveDevice(kind: .input) ?? device
+        let scope = kAudioDevicePropertyScopeInput
+        guard target.isConnected else {
+            postSwitchNotification(
+                title: "Microphone Mute Unavailable",
+                body: "\(target.name) is disconnected."
+            )
+            return false
+        }
+
+        guard target.hasMuteControl(scope: scope) else {
+            postSwitchNotification(
+                title: "Microphone Mute Unavailable",
+                body: "\(target.name) does not support mute."
+            )
+            return false
+        }
+
+        let currentlyMuted = target.getMute(scope: scope) ?? false
+        let newValue = !currentlyMuted
+        guard target.setMute(newValue, scope: scope) else {
+            postSwitchNotification(
+                title: "Microphone Mute Failed",
+                body: "Could not change mute on \(target.name)."
+            )
+            return false
+        }
+
+        // Volume at 0 still reads as muted in the UI; unmute restores a usable level.
+        if !newValue, let volume = target.getVolume(scope: scope), volume <= 0.001 {
+            _ = target.setVolume(0.1, scope: scope)
+        }
+
+        currentInputDevice = AudioDevice.getCurrentDefaultInput() ?? target
+        postSwitchNotification(
+            title: newValue ? "Microphone Muted" : "Microphone Unmuted",
+            body: target.name
+        )
+        return true
+    }
+
+    func isCurrentInputMuted() -> Bool {
+        let device = AudioDevice.getCurrentDefaultInput() ?? currentInputDevice
+        return device?.getMute(scope: kAudioDevicePropertyScopeInput) ?? false
+    }
+
     private func applyDefaultOutputDevice(_ device: AudioDevice, notify: Bool) {
         let target = device.resolvedLiveDevice(kind: .output) ?? device
         guard target.isConnected else {

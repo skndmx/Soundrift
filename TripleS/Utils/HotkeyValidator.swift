@@ -1,11 +1,18 @@
 import Carbon
 import AppKit
 
+enum HotkeyAssignment: Equatable {
+    case output
+    case input
+    case mute
+}
+
 enum HotkeyValidationError: Equatable, Error {
     case requiresModifier
     case reservedSystemShortcut(String)
     case duplicateWithOutput
     case duplicateWithInput
+    case duplicateWithMute
 
     var message: String {
         switch self {
@@ -17,6 +24,8 @@ enum HotkeyValidationError: Equatable, Error {
             return "This shortcut is already used for output switching."
         case .duplicateWithInput:
             return "This shortcut is already used for input switching."
+        case .duplicateWithMute:
+            return "This shortcut is already used for microphone mute."
         }
     }
 }
@@ -60,7 +69,9 @@ enum HotkeyValidator {
         outputModifiers: Int,
         inputKeyCode: Int,
         inputModifiers: Int,
-        assigningToInput: Bool
+        muteKeyCode: Int,
+        muteModifiers: Int,
+        assigningTo: HotkeyAssignment
     ) -> Result<Void, HotkeyValidationError> {
         let normalized = normalizedModifiers(modifiers)
         guard normalized != 0 else {
@@ -71,23 +82,21 @@ enum HotkeyValidator {
             return .failure(.reservedSystemShortcut(reason))
         }
 
-        if assigningToInput {
+        let others: [(HotkeyAssignment, Int, Int, HotkeyValidationError)] = [
+            (.output, outputKeyCode, outputModifiers, .duplicateWithOutput),
+            (.input, inputKeyCode, inputModifiers, .duplicateWithInput),
+            (.mute, muteKeyCode, muteModifiers, .duplicateWithMute)
+        ]
+
+        for (assignment, existingKeyCode, existingModifiers, error) in others {
+            guard assignment != assigningTo else { continue }
             if hotkeysMatch(
                 keyCode: keyCode,
                 modifiers: normalized,
-                keyCode: outputKeyCode,
-                modifiers: outputModifiers
+                keyCode: existingKeyCode,
+                modifiers: existingModifiers
             ) {
-                return .failure(.duplicateWithOutput)
-            }
-        } else {
-            if hotkeysMatch(
-                keyCode: keyCode,
-                modifiers: normalized,
-                keyCode: inputKeyCode,
-                modifiers: inputModifiers
-            ) {
-                return .failure(.duplicateWithInput)
+                return .failure(error)
             }
         }
 

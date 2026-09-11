@@ -11,8 +11,12 @@ struct MainView: View {
     @AppStorage("inputHotkeyModifiers") private var inputHotkeyModifiers = Int(modifierCmdKey | modifierShiftKey)
     @AppStorage("inputHotkeyKeyCode") private var inputHotkeyKeyCode = Int(kVK_DownArrow)
     @State private var isRecordingInputHotkey = false
+    @AppStorage("muteHotkeyModifiers") private var muteHotkeyModifiers = Int(modifierControlKey | modifierOptionKey)
+    @AppStorage("muteHotkeyKeyCode") private var muteHotkeyKeyCode = Int(kVK_ANSI_M)
+    @State private var isRecordingMuteHotkey = false
     @State private var outputHotkeyError: String?
     @State private var inputHotkeyError: String?
+    @State private var muteHotkeyError: String?
 
     private var visibleOutputDevices: [AudioDevice] {
         audioManager.visibleOutputDevices
@@ -68,50 +72,65 @@ struct MainView: View {
         .onChange(of: inputHotkeyModifiers) { _, _ in
             updateDefaultHotkeyIfNeeded()
         }
+        .onChange(of: muteHotkeyKeyCode) { _, _ in
+            updateDefaultHotkeyIfNeeded()
+        }
+        .onChange(of: muteHotkeyModifiers) { _, _ in
+            updateDefaultHotkeyIfNeeded()
+        }
     }
 
     private var sidebar: some View {
-        VStack(spacing: 16) {
-            Text("Soundrift")
-                .font(.largeTitle)
-                .bold()
+        ScrollView {
+            VStack(spacing: 16) {
+                Text("Soundrift")
+                    .font(.largeTitle)
+                    .bold()
 
-            Image("AppIcon2")
-                .resizable()
-                .frame(width: 120, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                Image("AppIcon2")
+                    .resizable()
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            VStack(spacing: 2) {
-                Text("Version 1.5.0")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 2) {
+                    Text("Version 1.5.0")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-                Text("Created by Kevin Jin")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text("Created by Kevin Jin")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                sidebarHotkeySection(
+                    title: "Output shortcut",
+                    hotkeyString: getHotkeyString(),
+                    isRecording: isRecordingHotkey,
+                    errorMessage: outputHotkeyError,
+                    recordAction: toggleHotkeyRecording
+                )
+
+                sidebarHotkeySection(
+                    title: "Input shortcut",
+                    hotkeyString: getInputHotkeyString(),
+                    isRecording: isRecordingInputHotkey,
+                    errorMessage: inputHotkeyError,
+                    recordAction: toggleInputHotkeyRecording
+                )
+
+                sidebarHotkeySection(
+                    title: "Mute microphone",
+                    hotkeyString: getMuteHotkeyString(),
+                    isRecording: isRecordingMuteHotkey,
+                    errorMessage: muteHotkeyError,
+                    recordAction: toggleMuteHotkeyRecording
+                )
             }
-
-            Divider()
-
-            sidebarHotkeySection(
-                title: "Output shortcut",
-                hotkeyString: getHotkeyString(),
-                isRecording: isRecordingHotkey,
-                errorMessage: outputHotkeyError,
-                recordAction: toggleHotkeyRecording
-            )
-
-            sidebarHotkeySection(
-                title: "Input shortcut",
-                hotkeyString: getInputHotkeyString(),
-                isRecording: isRecordingInputHotkey,
-                errorMessage: inputHotkeyError,
-                recordAction: toggleInputHotkeyRecording
-            )
-
-            Spacer(minLength: 0)
+            .padding()
+            .frame(maxWidth: .infinity)
         }
-        .padding()
     }
 
     private var outputTab: some View {
@@ -223,6 +242,10 @@ struct MainView: View {
         HotkeyManager.shared.registerInput(keyCode: inputHotkeyKeyCode, modifiers: inputHotkeyModifiers) {
             DeviceSwitchManager.shared.switchToNextDevice(type: .input)
         }
+
+        HotkeyManager.shared.registerMute(keyCode: muteHotkeyKeyCode, modifiers: muteHotkeyModifiers) {
+            DeviceSwitchManager.shared.toggleMicrophoneMute()
+        }
     }
 
     private func getHotkeyString() -> String {
@@ -231,6 +254,10 @@ struct MainView: View {
 
     private func getInputHotkeyString() -> String {
         hotkeyString(modifiers: inputHotkeyModifiers, keyCode: inputHotkeyKeyCode)
+    }
+
+    private func getMuteHotkeyString() -> String {
+        hotkeyString(modifiers: muteHotkeyModifiers, keyCode: muteHotkeyKeyCode)
     }
 
     private func hotkeyString(modifiers: Int, keyCode: Int) -> String {
@@ -275,7 +302,7 @@ struct MainView: View {
         if isRecordingHotkey {
             stopHotkeyRecording()
         } else {
-            beginHotkeyRecording(forInput: false)
+            beginHotkeyRecording(assigningTo: .output)
         }
     }
 
@@ -283,29 +310,37 @@ struct MainView: View {
         if isRecordingInputHotkey {
             stopHotkeyRecording()
         } else {
-            beginHotkeyRecording(forInput: true)
+            beginHotkeyRecording(assigningTo: .input)
         }
     }
 
-    private func beginHotkeyRecording(forInput: Bool) {
+    private func toggleMuteHotkeyRecording() {
+        if isRecordingMuteHotkey {
+            stopHotkeyRecording()
+        } else {
+            beginHotkeyRecording(assigningTo: .mute)
+        }
+    }
+
+    private func beginHotkeyRecording(assigningTo: HotkeyAssignment) {
         stopHotkeyRecording(restoreHotkeys: false)
         suspendRegisteredHotkeys()
 
-        if forInput {
-            inputHotkeyError = nil
-            isRecordingInputHotkey = true
-        } else {
+        switch assigningTo {
+        case .output:
             outputHotkeyError = nil
             isRecordingHotkey = true
+        case .input:
+            inputHotkeyError = nil
+            isRecordingInputHotkey = true
+        case .mute:
+            muteHotkeyError = nil
+            isRecordingMuteHotkey = true
         }
 
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [self] event in
             Task { @MainActor in
-                if forInput {
-                    handleInputKeyEvent(event)
-                } else {
-                    handleKeyEvent(event)
-                }
+                handleRecordedKeyEvent(event, assigningTo: assigningTo)
             }
             return nil
         }
@@ -314,11 +349,13 @@ struct MainView: View {
     private func suspendRegisteredHotkeys() {
         HotkeyManager.shared.unregister()
         HotkeyManager.shared.unregisterInput()
+        HotkeyManager.shared.unregisterMute()
     }
 
     private func stopHotkeyRecording(restoreHotkeys: Bool = true) {
         isRecordingHotkey = false
         isRecordingInputHotkey = false
+        isRecordingMuteHotkey = false
         if let monitor = localEventMonitor {
             NSEvent.removeMonitor(monitor)
             localEventMonitor = nil
@@ -329,7 +366,7 @@ struct MainView: View {
     }
 
     @MainActor
-    private func assignHotkey(keyCode: Int, modifiers: Int, toInput: Bool) {
+    private func assignHotkey(keyCode: Int, modifiers: Int, assigningTo: HotkeyAssignment) {
         let normalizedModifiers = HotkeyValidator.normalizedModifiers(modifiers)
         let result = HotkeyValidator.validate(
             keyCode: keyCode,
@@ -338,43 +375,54 @@ struct MainView: View {
             outputModifiers: hotkeyModifiers,
             inputKeyCode: inputHotkeyKeyCode,
             inputModifiers: inputHotkeyModifiers,
-            assigningToInput: toInput
+            muteKeyCode: muteHotkeyKeyCode,
+            muteModifiers: muteHotkeyModifiers,
+            assigningTo: assigningTo
         )
 
         stopHotkeyRecording()
 
         switch result {
         case .success:
-            if toInput {
-                inputHotkeyError = nil
-                inputHotkeyModifiers = normalizedModifiers
-                inputHotkeyKeyCode = keyCode
-            } else {
+            switch assigningTo {
+            case .output:
                 outputHotkeyError = nil
                 hotkeyModifiers = normalizedModifiers
                 hotkeyKeyCode = keyCode
+            case .input:
+                inputHotkeyError = nil
+                inputHotkeyModifiers = normalizedModifiers
+                inputHotkeyKeyCode = keyCode
+            case .mute:
+                muteHotkeyError = nil
+                muteHotkeyModifiers = normalizedModifiers
+                muteHotkeyKeyCode = keyCode
             }
             updateDefaultHotkeyIfNeeded()
         case .failure(let error):
-            if toInput {
-                inputHotkeyError = error.message
-            } else {
+            switch assigningTo {
+            case .output:
                 outputHotkeyError = error.message
+            case .input:
+                inputHotkeyError = error.message
+            case .mute:
+                muteHotkeyError = error.message
             }
         }
     }
 
-    private func handleKeyEvent(_ event: NSEvent) {
-        guard isRecordingHotkey else { return }
-        processRecordedEvent(event, toInput: false)
+    private func handleRecordedKeyEvent(_ event: NSEvent, assigningTo: HotkeyAssignment) {
+        let isRecording: Bool
+        switch assigningTo {
+        case .output: isRecording = isRecordingHotkey
+        case .input: isRecording = isRecordingInputHotkey
+        case .mute: isRecording = isRecordingMuteHotkey
+        }
+        guard isRecording else { return }
+        processRecordedEvent(event, assigningTo: assigningTo)
     }
 
-    private func handleInputKeyEvent(_ event: NSEvent) {
-        guard isRecordingInputHotkey else { return }
-        processRecordedEvent(event, toInput: true)
-    }
-
-    private func processRecordedEvent(_ event: NSEvent, toInput: Bool) {
+    private func processRecordedEvent(_ event: NSEvent, assigningTo: HotkeyAssignment) {
         let validModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
         let currentModifiers = event.modifierFlags.intersection(validModifiers)
         guard !currentModifiers.isEmpty else { return }
@@ -382,7 +430,7 @@ struct MainView: View {
         assignHotkey(
             keyCode: Int(event.keyCode),
             modifiers: Int(currentModifiers.rawValue),
-            toInput: toInput
+            assigningTo: assigningTo
         )
     }
 }
