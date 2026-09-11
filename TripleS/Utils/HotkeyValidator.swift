@@ -1,11 +1,18 @@
 import Carbon
 import AppKit
 
+enum HotkeyRole: Equatable {
+    case output
+    case input
+    case mute
+}
+
 enum HotkeyValidationError: Equatable, Error {
     case requiresModifier
     case reservedSystemShortcut(String)
     case duplicateWithOutput
     case duplicateWithInput
+    case duplicateWithMute
 
     var message: String {
         switch self {
@@ -17,6 +24,8 @@ enum HotkeyValidationError: Equatable, Error {
             return "This shortcut is already used for output switching."
         case .duplicateWithInput:
             return "This shortcut is already used for input switching."
+        case .duplicateWithMute:
+            return "This shortcut is already used for mute."
         }
     }
 }
@@ -60,7 +69,33 @@ enum HotkeyValidator {
         outputModifiers: Int,
         inputKeyCode: Int,
         inputModifiers: Int,
+        muteKeyCode: Int = kVK_ANSI_M,
+        muteModifiers: Int = Int(NSEvent.ModifierFlags.option.rawValue),
         assigningToInput: Bool
+    ) -> Result<Void, HotkeyValidationError> {
+        validate(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            outputKeyCode: outputKeyCode,
+            outputModifiers: outputModifiers,
+            inputKeyCode: inputKeyCode,
+            inputModifiers: inputModifiers,
+            muteKeyCode: muteKeyCode,
+            muteModifiers: muteModifiers,
+            assigningTo: assigningToInput ? .input : .output
+        )
+    }
+
+    static func validate(
+        keyCode: Int,
+        modifiers: Int,
+        outputKeyCode: Int,
+        outputModifiers: Int,
+        inputKeyCode: Int,
+        inputModifiers: Int,
+        muteKeyCode: Int,
+        muteModifiers: Int,
+        assigningTo: HotkeyRole
     ) -> Result<Void, HotkeyValidationError> {
         let normalized = normalizedModifiers(modifiers)
         guard normalized != 0 else {
@@ -71,24 +106,35 @@ enum HotkeyValidator {
             return .failure(.reservedSystemShortcut(reason))
         }
 
-        if assigningToInput {
-            if hotkeysMatch(
-                keyCode: keyCode,
-                modifiers: normalized,
-                keyCode: outputKeyCode,
-                modifiers: outputModifiers
-            ) {
-                return .failure(.duplicateWithOutput)
-            }
-        } else {
-            if hotkeysMatch(
-                keyCode: keyCode,
-                modifiers: normalized,
-                keyCode: inputKeyCode,
-                modifiers: inputModifiers
-            ) {
-                return .failure(.duplicateWithInput)
-            }
+        let outputMatch = hotkeysMatch(
+            keyCode: keyCode,
+            modifiers: normalized,
+            keyCode: outputKeyCode,
+            modifiers: outputModifiers
+        )
+        let inputMatch = hotkeysMatch(
+            keyCode: keyCode,
+            modifiers: normalized,
+            keyCode: inputKeyCode,
+            modifiers: inputModifiers
+        )
+        let muteMatch = hotkeysMatch(
+            keyCode: keyCode,
+            modifiers: normalized,
+            keyCode: muteKeyCode,
+            modifiers: muteModifiers
+        )
+
+        switch assigningTo {
+        case .output:
+            if inputMatch { return .failure(.duplicateWithInput) }
+            if muteMatch { return .failure(.duplicateWithMute) }
+        case .input:
+            if outputMatch { return .failure(.duplicateWithOutput) }
+            if muteMatch { return .failure(.duplicateWithMute) }
+        case .mute:
+            if outputMatch { return .failure(.duplicateWithOutput) }
+            if inputMatch { return .failure(.duplicateWithInput) }
         }
 
         return .success(())

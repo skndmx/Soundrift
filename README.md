@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/main-window.png" alt="Soundrift main window — shortcuts in the sidebar, output devices on the right" width="880" />
+  <img src="docs/images/main-window.png" alt="Soundrift main window — Devices, Shortcuts, and Settings tabs" width="880" />
 </p>
 
 ## Why Soundrift?
@@ -25,7 +25,7 @@ Built for people who hop between headphones, speakers, and mics all day.
 
 | | |
 |---|---|
-| **Global shortcuts** | Separate hotkeys for output and input rotation |
+| **Global shortcuts** | Separate hotkeys for output rotation, input rotation, and mute |
 | **Menu bar app** | Stays out of the way; close the window to hide the Dock icon |
 | **Hide clutter** | Tuck away virtual devices (Teams Audio, etc.) |
 | **Launch at login** | Ready when you are |
@@ -49,13 +49,14 @@ Then right-click the app → **Open**.
 ## Quick start
 
 1. Open **Show Main Window** from the menu bar icon  
-2. Check the devices you want in your rotation (Output / Input tabs)  
-3. Record shortcuts in the left sidebar  
+2. On **Devices**, check the outputs/inputs you want in rotation  
+3. Open **Shortcuts** and record hotkeys with **Change**  
 4. Press the shortcut to switch — a notification confirms the active device  
 
 **Tips**
 
 - Eye icon → hide a device; restore it from **Hidden**  
+- Volume for the active device lives in the top strip when macOS exposes it  
 - **⌘W** (or the red close button) → back to menu-bar-only mode  
 - Quit from the menu bar when you want Soundrift fully exited  
 

@@ -11,25 +11,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func setupMainWindow() {
-        // fullSizeContentView + unified toolbar are required for NavigationSplitView's
-        // sidebar collapse control to sit in the correct leading titlebar position.
-        // Without them (plain NSHostingView chrome), the toggle jumps to the wrong place.
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 540),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "Soundrift"
-        window.minSize = NSSize(width: 600, height: 500)
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.minSize = NSSize(width: 640, height: 460)
         window.isReleasedWhenClosed = false
+        window.isMovableByWindowBackground = true
         window.toolbarStyle = .unified
         window.contentViewController = NSHostingController(
             rootView: MainView()
-                .frame(minWidth: 600, minHeight: 500)
+                .frame(minWidth: 640, minHeight: 460)
         )
         window.delegate = self
-        window.setFrameAutosaveName("SoundriftMainWindow")
+        window.setFrameAutosaveName("SoundriftMainWindow.v2")
         window.center()
         window.makeKeyAndOrderFront(nil)
         mainWindow = window
