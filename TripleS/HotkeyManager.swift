@@ -3,103 +3,142 @@ import Cocoa
 
 class HotkeyManager {
     static let shared = HotkeyManager()
-    
+
     private var eventHandler: EventHandlerRef?
     private var hotKeyRef: EventHotKeyRef?
     private var inputHotKeyRef: EventHotKeyRef?
+    private var muteHotKeyRef: EventHotKeyRef?
     private var callback: (() -> Void)?
     private var inputCallback: (() -> Void)?
-    
+    private var muteCallback: (() -> Void)?
+
+    private let outputSignature = OSType("TSSO".fourCharCodeValue)
+    private let inputSignature = OSType("TSSI".fourCharCodeValue)
+    private let muteSignature = OSType("TSSM".fourCharCodeValue)
+
     private init() {}
-    
+
     func register(keyCode: Int, modifiers: Int, callback: @escaping () -> Void) {
         print("=== Registering Output Hotkey ===")
         print("KeyCode: \(keyCode)")
         print("Raw Modifiers: \(modifiers)")
-        
-        // Convert AppKit modifiers to Carbon modifiers
-        var carbonModifiers = 0
-        if modifiers & Int(NSEvent.ModifierFlags.command.rawValue) != 0 { carbonModifiers |= cmdKey }
-        if modifiers & Int(NSEvent.ModifierFlags.control.rawValue) != 0 { carbonModifiers |= controlKey }
-        if modifiers & Int(NSEvent.ModifierFlags.option.rawValue) != 0 { carbonModifiers |= optionKey }
-        if modifiers & Int(NSEvent.ModifierFlags.shift.rawValue) != 0 { carbonModifiers |= shiftKey }
-        
-        print("Carbon Modifiers: \(carbonModifiers)")
-        
-        // Unregister existing hotkey if any
+
         unregister()
-        
         self.callback = callback
-        
         setupEventHandler()
-        
-        // Register hotkey
-        let gMyHotKeyID = EventHotKeyID(signature: OSType("TSSO".fourCharCodeValue), id: 1)
-        
-        let registerStatus = RegisterEventHotKey(
-            UInt32(keyCode),
-            UInt32(carbonModifiers),
-            gMyHotKeyID,
-            GetApplicationEventTarget(),
-            OptionBits(0),
-            &hotKeyRef
+
+        let status = registerHotKey(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            signature: outputSignature,
+            id: 1,
+            slot: &hotKeyRef
         )
-        
-        print("Output hotkey registration status: \(registerStatus)")
+        print("Output hotkey registration status: \(status)")
     }
-    
+
     func registerInput(keyCode: Int, modifiers: Int, callback: @escaping () -> Void) {
         print("=== Registering Input Hotkey ===")
         print("KeyCode: \(keyCode)")
         print("Raw Modifiers: \(modifiers)")
-        
+
+        unregisterInput()
+        self.inputCallback = callback
+
+        let status = registerHotKey(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            signature: inputSignature,
+            id: 2,
+            slot: &inputHotKeyRef
+        )
+        print("Input hotkey registration status: \(status)")
+    }
+
+    func registerMute(keyCode: Int, modifiers: Int, callback: @escaping () -> Void) {
+        print("=== Registering Mute Hotkey ===")
+        print("KeyCode: \(keyCode)")
+        print("Raw Modifiers: \(modifiers)")
+
+        unregisterMute()
+        self.muteCallback = callback
+        setupEventHandler()
+
+        let status = registerHotKey(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            signature: muteSignature,
+            id: 3,
+            slot: &muteHotKeyRef
+        )
+        print("Mute hotkey registration status: \(status)")
+    }
+
+    func unregister() {
+        if let hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.hotKeyRef = nil
+        }
+    }
+
+    func unregisterInput() {
+        if let inputHotKeyRef {
+            UnregisterEventHotKey(inputHotKeyRef)
+            self.inputHotKeyRef = nil
+        }
+    }
+
+    func unregisterMute() {
+        if let muteHotKeyRef {
+            UnregisterEventHotKey(muteHotKeyRef)
+            self.muteHotKeyRef = nil
+        }
+    }
+
+    func unregisterAll() {
+        unregister()
+        unregisterInput()
+        unregisterMute()
+    }
+
+    private func carbonModifiers(from modifiers: Int) -> UInt32 {
         var carbonModifiers = 0
         if modifiers & Int(NSEvent.ModifierFlags.command.rawValue) != 0 { carbonModifiers |= cmdKey }
         if modifiers & Int(NSEvent.ModifierFlags.control.rawValue) != 0 { carbonModifiers |= controlKey }
         if modifiers & Int(NSEvent.ModifierFlags.option.rawValue) != 0 { carbonModifiers |= optionKey }
         if modifiers & Int(NSEvent.ModifierFlags.shift.rawValue) != 0 { carbonModifiers |= shiftKey }
-        
-        unregisterInput()
-        
-        self.inputCallback = callback
-        
-        // Register input hotkey
-        let gMyHotKeyID = EventHotKeyID(signature: OSType("TSSI".fourCharCodeValue), id: 2)
-        
-        let registerStatus = RegisterEventHotKey(
+        print("Carbon Modifiers: \(carbonModifiers)")
+        return UInt32(carbonModifiers)
+    }
+
+    private func registerHotKey(
+        keyCode: Int,
+        modifiers: Int,
+        signature: OSType,
+        id: UInt32,
+        slot: inout EventHotKeyRef?
+    ) -> OSStatus {
+        let hotKeyID = EventHotKeyID(signature: signature, id: id)
+        return RegisterEventHotKey(
             UInt32(keyCode),
-            UInt32(carbonModifiers),
-            gMyHotKeyID,
+            carbonModifiers(from: modifiers),
+            hotKeyID,
             GetApplicationEventTarget(),
             OptionBits(0),
-            &inputHotKeyRef
+            &slot
         )
-        
-        print("Input hotkey registration status: \(registerStatus)")
     }
-    
-    func unregister() {
-        if let hotKeyRef = hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-            self.hotKeyRef = nil
-        }
-    }
-    
-    func unregisterInput() {
-        if let hotKeyRef = inputHotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-            self.inputHotKeyRef = nil
-        }
-    }
-    
+
     private func setupEventHandler() {
+        guard eventHandler == nil else { return }
+
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: UInt32(kEventHotKeyPressed)
         )
-        
+
         let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        
+
         InstallEventHandler(
             GetApplicationEventTarget(),
             { (_, event, userData) -> OSStatus in
@@ -117,12 +156,15 @@ class HotkeyManager {
                 )
 
                 if status == noErr {
-                    if hotKeyID.signature == OSType("TSSO".fourCharCodeValue) {
+                    if hotKeyID.signature == manager.outputSignature {
                         print("Hotkey detected! (output)")
                         manager.callback?()
-                    } else if hotKeyID.signature == OSType("TSSI".fourCharCodeValue) {
+                    } else if hotKeyID.signature == manager.inputSignature {
                         print("Hotkey detected! (input)")
                         manager.inputCallback?()
+                    } else if hotKeyID.signature == manager.muteSignature {
+                        print("Hotkey detected! (mute)")
+                        manager.muteCallback?()
                     }
                 }
 
@@ -145,4 +187,4 @@ extension String {
         }
         return result
     }
-} 
+}

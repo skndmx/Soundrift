@@ -13,4 +13,8 @@ class DeviceSwitchManager {
             audioManager.switchToNextInputDevice()
         }
     }
+
+    func toggleMicrophoneMute() {
+        audioManager.toggleCurrentInputMute()
+    }
 }

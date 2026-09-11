@@ -1,4 +1,4 @@
-enum DeviceType {
+enum DeviceType: Hashable {
     case output
     case input
 } 

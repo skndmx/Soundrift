@@ -1,11 +1,18 @@
 import Carbon
 import AppKit
 
+enum HotkeyAssignment: Equatable {
+    case output
+    case input
+    case mute
+}
+
 enum HotkeyValidationError: Equatable, Error {
     case requiresModifier
     case reservedSystemShortcut(String)
     case duplicateWithOutput
     case duplicateWithInput
+    case duplicateWithMute
 
     var message: String {
         switch self {
@@ -17,6 +24,8 @@ enum HotkeyValidationError: Equatable, Error {
             return "This shortcut is already used for output switching."
         case .duplicateWithInput:
             return "This shortcut is already used for input switching."
+        case .duplicateWithMute:
+            return "This shortcut is already used for microphone mute."
         }
     }
 }
@@ -60,7 +69,9 @@ enum HotkeyValidator {
         outputModifiers: Int,
         inputKeyCode: Int,
         inputModifiers: Int,
-        assigningToInput: Bool
+        muteKeyCode: Int = 0,
+        muteModifiers: Int = 0,
+        assigningTo: HotkeyAssignment
     ) -> Result<Void, HotkeyValidationError> {
         let normalized = normalizedModifiers(modifiers)
         guard normalized != 0 else {
@@ -71,27 +82,55 @@ enum HotkeyValidator {
             return .failure(.reservedSystemShortcut(reason))
         }
 
-        if assigningToInput {
-            if hotkeysMatch(
-                keyCode: keyCode,
-                modifiers: normalized,
-                keyCode: outputKeyCode,
-                modifiers: outputModifiers
-            ) {
-                return .failure(.duplicateWithOutput)
-            }
-        } else {
-            if hotkeysMatch(
-                keyCode: keyCode,
-                modifiers: normalized,
-                keyCode: inputKeyCode,
-                modifiers: inputModifiers
-            ) {
-                return .failure(.duplicateWithInput)
-            }
+        let candidate = (keyCode, normalized)
+        let output = (outputKeyCode, normalizedModifiers(outputModifiers))
+        let input = (inputKeyCode, normalizedModifiers(inputModifiers))
+        let mute = (muteKeyCode, normalizedModifiers(muteModifiers))
+
+        if assigningTo != .output, matches(candidate, output) {
+            return .failure(.duplicateWithOutput)
+        }
+        if assigningTo != .input, matches(candidate, input) {
+            return .failure(.duplicateWithInput)
+        }
+        if assigningTo != .mute, muteKeyCode != 0, matches(candidate, mute) {
+            return .failure(.duplicateWithMute)
         }
 
         return .success(())
+    }
+
+    /// Compatibility wrapper for the previous `assigningToInput` flag.
+    static func validate(
+        keyCode: Int,
+        modifiers: Int,
+        outputKeyCode: Int,
+        outputModifiers: Int,
+        inputKeyCode: Int,
+        inputModifiers: Int,
+        assigningToInput: Bool
+    ) -> Result<Void, HotkeyValidationError> {
+        validate(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            outputKeyCode: outputKeyCode,
+            outputModifiers: outputModifiers,
+            inputKeyCode: inputKeyCode,
+            inputModifiers: inputModifiers,
+            assigningTo: assigningToInput ? .input : .output
+        )
+    }
+
+    private static func matches(
+        _ lhs: (Int, Int),
+        _ rhs: (Int, Int)
+    ) -> Bool {
+        hotkeysMatch(
+            keyCode: lhs.0,
+            modifiers: lhs.1,
+            keyCode: rhs.0,
+            modifiers: rhs.1
+        )
     }
 
     private static func reservedReason(keyCode: Int, modifiers: Int) -> String? {

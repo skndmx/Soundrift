@@ -545,6 +545,39 @@ class AudioManager: ObservableObject {
         saveSelectedInputDevices()
     }
 
+    func toggleCurrentInputMute() {
+        guard let device = currentInputDevice ?? AudioDevice.getCurrentDefaultInput() else {
+            postSwitchNotification(
+                title: "Microphone Unavailable",
+                body: "No input device is active."
+            )
+            return
+        }
+
+        let scope = kAudioDevicePropertyScopeInput
+        guard device.hasMuteControl(scope: scope) else {
+            postSwitchNotification(
+                title: "Mute Unavailable",
+                body: "\(device.name) does not support mute."
+            )
+            return
+        }
+
+        let currentlyMuted = device.getMute(scope: scope) ?? false
+        guard device.setMute(!currentlyMuted, scope: scope) else {
+            postSwitchNotification(
+                title: "Mute Unavailable",
+                body: "Could not change mute on \(device.name)."
+            )
+            return
+        }
+
+        postSwitchNotification(
+            title: currentlyMuted ? "Microphone Unmuted" : "Microphone Muted",
+            body: device.name
+        )
+    }
+
     func selectOutputDevice(_ device: AudioDevice) {
         let target = device.resolvedLiveDevice(kind: .output) ?? device
         if let current = AudioDevice.getCurrentDefault(), current.isSameAudioEndpoint(as: target) {

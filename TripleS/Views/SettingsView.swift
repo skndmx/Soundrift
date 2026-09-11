@@ -5,48 +5,50 @@ struct SettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Settings")
-                .font(.headline)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("How to use")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("1. Check devices to include in your shortcut")
-                    Text("2. Tap the eye icon to hide devices you don't need")
-                    Text("3. Set keyboard shortcuts in the left sidebar")
-                    Text("4. Use the shortcuts to switch between devices")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hidden devices")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("Use the eye icon on any device row to hide it. Hidden devices move to the Hidden section at the bottom of the Output or Input tab, where you can unhide them.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { _, newValue in
-                    if newValue {
-                        try? SMAppService.mainApp.register()
-                    } else {
-                        try? SMAppService.mainApp.unregister()
+        Form {
+            Section {
+                Toggle("Launch at login", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        if newValue {
+                            try? SMAppService.mainApp.register()
+                        } else {
+                            try? SMAppService.mainApp.unregister()
+                        }
                     }
-                }
+            } footer: {
+                Text("Soundrift stays in the menu bar. Close the window to hide the Dock icon.")
+            }
 
-            Spacer()
+            Section("About") {
+                LabeledContent("Version", value: SoundriftTheme.appVersion)
+                LabeledContent("Created by", value: "Kevin Jin")
+            }
+
+            Section {
+                DisclosureGroup("Tips") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        tipRow("Check devices to include them in shortcut rotation.")
+                        tipRow("Click a device name to switch to it immediately.")
+                        tipRow("Hide unused devices with the eye icon; restore them from Hidden.")
+                        tipRow("Record global shortcuts in the Shortcuts tab.")
+                    }
+                    .padding(.top, 4)
+                }
+            }
         }
-        .padding()
+        .formStyle(.grouped)
+        .padding(.top, 4)
+    }
+
+    private func tipRow(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
 #Preview {
     SettingsView()
+        .frame(width: 640, height: 480)
 }

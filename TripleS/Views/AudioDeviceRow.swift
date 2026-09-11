@@ -1,18 +1,9 @@
 import SwiftUI
-import CoreAudio
 
 struct AudioDeviceRow: View {
     @StateObject private var audioManager = AudioManager.shared
     let device: AudioDevice
     let kind: DeviceType
-
-    @State private var volume: Float = 0
-    @State private var supportsVolume = false
-    @State private var supportsMute = false
-    @State private var isMuted = false
-    @State private var didProbeSupport = false
-    @State private var volumeMonitor: DeviceVolumeMonitor?
-    @State private var interaction = VolumeInteractionState()
 
     private var isSelected: Bool {
         switch kind {
@@ -43,142 +34,87 @@ struct AudioDeviceRow: View {
         liveDevice.isConnected
     }
 
-    private var volumeScope: AudioObjectPropertyScope {
-        kind == .output ? kAudioDevicePropertyScopeOutput : kAudioDevicePropertyScopeInput
-    }
-
-    private var showsAsMuted: Bool {
-        isMuted || volume <= 0.001
-    }
-
-    private var volumeIconName: String {
-        if showsAsMuted {
-            return kind == .output ? "speaker.slash.fill" : "mic.slash.fill"
+    private var statusText: String {
+        if isCurrentDevice, isDeviceConnected {
+            return "Active"
         }
-        return kind == .output ? "speaker.wave.2.fill" : "mic.fill"
+        return isDeviceConnected ? "Connected" : "Disconnected"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Button {
-                    guard isDeviceConnected else { return }
-                    setSelected(!isSelected)
-                } label: {
-                    Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                        .foregroundStyle(isSelected ? Color.cyan : .secondary)
-                        .font(.system(size: 16))
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.plain)
-                .disabled(!isDeviceConnected)
-                .help(isDeviceConnected ? "Include in shortcut rotation" : "Connect device to include in rotation")
-
-                Button(action: switchToThisDevice) {
-                    HStack(spacing: 10) {
-                        deviceGlyph
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(device.name)
-                                .fontWeight(.medium)
-                                .foregroundStyle(isDeviceConnected ? .primary : .secondary)
-                            Text(isDeviceConnected ? "Connected" : "Disconnected")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(!isDeviceConnected)
-                .help(switchHelp)
-
-                HStack(spacing: 4) {
-                    Button(action: hideDevice) {
-                        rowIcon("eye.slash")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Hide this device from the list")
-                }
+        HStack(spacing: 10) {
+            Button {
+                guard isDeviceConnected else { return }
+                setSelected(!isSelected)
+            } label: {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(isSelected ? SoundriftTheme.accent : Color.secondary.opacity(0.7))
+                    .font(.system(size: 15, weight: .medium))
+                    .frame(width: 20, height: 20)
             }
+            .buttonStyle(.plain)
+            .disabled(!isDeviceConnected)
+            .help(isDeviceConnected ? "Include in shortcut rotation" : "Connect device to include in rotation")
 
-            if isDeviceConnected {
-                if supportsVolume {
-                    HStack(spacing: 10) {
-                        Button(action: toggleMute) {
-                            Image(systemName: volumeIconName)
-                                .font(.system(size: 12))
-                                .foregroundStyle(showsAsMuted ? .red : .secondary)
-                                .frame(width: 20, height: 20)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!supportsMute)
-                        .help(supportsMute ? (showsAsMuted ? "Unmute" : "Mute") : "Mute not supported on this device")
+            Button(action: switchToThisDevice) {
+                HStack(spacing: 8) {
+                    Image(systemName: liveDevice.glyphSystemName(kind: kind))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(isDeviceConnected ? .primary : .secondary)
+                        .frame(width: 18, height: 18)
 
-                        Slider(
-                            value: Binding(
-                                get: { Double(volume) },
-                                set: { newValue in
-                                    applyVolumeFromSlider(Float(newValue))
-                                }
-                            ),
-                            in: 0...1
-                        ) { editing in
-                            interaction.isAdjustingVolume = editing
-                            if !editing {
-                                refreshVolumeFromDevice(reprobeSupport: false)
-                            }
-                        }
-                        .opacity(showsAsMuted ? 0.45 : 1)
-
-                        Text("\(Int((volume * 100).rounded()))%")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(showsAsMuted ? .red : .secondary)
-                            .frame(width: 36, alignment: .trailing)
-                    }
-                    .help(kind == .output ? "Output volume for this device" : "Input gain for this device")
-                } else {
-                    Text("No volume control on this device")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .help("macOS does not expose a working volume control for this device (common for Continuity mics and some virtual devices like Teams input).")
+                    Text(device.name)
+                        .font(.body)
+                        .foregroundStyle(isDeviceConnected ? .primary : .secondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .contentShape(Rectangle())
             }
-        }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(rowBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
+            .buttonStyle(.plain)
+            .disabled(!isDeviceConnected)
+            .help(switchHelp)
+
+            Text(statusText)
+                .font(.subheadline)
+                .foregroundStyle(statusColor)
+                .frame(minWidth: 88, alignment: .trailing)
+
             if isCurrentDevice, isDeviceConnected {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                Image(systemName: kind == .output ? "speaker.wave.2" : "mic")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(SoundriftTheme.accent)
+                    .frame(width: 18, height: 18)
+                    .help(kind == .output ? "Current output" : "Current input")
             }
+
+            Button(action: hideDevice) {
+                Image(systemName: "eye.slash")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .help("Hide this device from the list")
         }
+        .padding(.horizontal, 12)
+        .frame(height: SoundriftTheme.rowHeight)
+        .background(rowBackground)
         .opacity(isDeviceConnected ? 1 : 0.55)
-        .padding(.horizontal)
-        .onAppear {
-            refreshVolumeFromDevice(reprobeSupport: true)
-            startVolumeMonitor()
+    }
+
+    private var statusColor: Color {
+        if isCurrentDevice, isDeviceConnected {
+            return SoundriftTheme.accent
         }
-        .onDisappear {
-            stopVolumeMonitor()
+        return .secondary
+    }
+
+    private var rowBackground: Color {
+        if isCurrentDevice, isDeviceConnected {
+            return SoundriftTheme.accent.opacity(0.12)
         }
-        .onChange(of: liveDevice.id) { _, _ in
-            didProbeSupport = false
-            refreshVolumeFromDevice(reprobeSupport: true)
-            startVolumeMonitor()
-        }
-        .onChange(of: isDeviceConnected) { _, connected in
-            didProbeSupport = false
-            refreshVolumeFromDevice(reprobeSupport: true)
-            if connected {
-                startVolumeMonitor()
-            } else {
-                stopVolumeMonitor()
-            }
-        }
+        return .clear
     }
 
     private var switchHelp: String {
@@ -189,26 +125,6 @@ struct AudioDeviceRow: View {
             return kind == .output ? "Current output" : "Current input"
         }
         return kind == .output ? "Switch output to \(device.name)" : "Switch input to \(device.name)"
-    }
-
-    private var rowBackground: Color {
-        if isCurrentDevice, isDeviceConnected {
-            return Color.primary.opacity(0.14)
-        }
-        return Color.primary.opacity(0.05)
-    }
-
-    @ViewBuilder
-    private var deviceGlyph: some View {
-        let isActive = isCurrentDevice && isDeviceConnected
-        Image(systemName: liveDevice.glyphSystemName(kind: kind))
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(isActive ? Color.white : (isDeviceConnected ? Color.primary : Color.secondary))
-            .frame(width: 30, height: 30)
-            .background(
-                isActive ? Color(nsColor: .systemBlue) : Color.primary.opacity(isDeviceConnected ? 0.12 : 0.06),
-                in: Circle()
-            )
     }
 
     private func switchToThisDevice() {
@@ -231,93 +147,5 @@ struct AudioDeviceRow: View {
         case .output: audioManager.hideOutputDevice(device)
         case .input: audioManager.hideInputDevice(device)
         }
-    }
-
-    private func applyVolumeFromSlider(_ newValue: Float) {
-        volume = max(0, min(1, newValue))
-        if volume <= 0.001 {
-            volume = 0
-            if supportsMute, !isMuted {
-                isMuted = true
-                _ = device.setMute(true, scope: volumeScope)
-            }
-        } else if isMuted {
-            isMuted = false
-            _ = device.setMute(false, scope: volumeScope)
-        }
-        _ = device.setVolume(volume, scope: volumeScope)
-    }
-
-    private func toggleMute() {
-        guard supportsMute else { return }
-        let newValue = !showsAsMuted
-        if device.setMute(newValue, scope: volumeScope) {
-            isMuted = newValue
-            // Volume at 0 reads as muted in the UI; unmute restores a usable level.
-            if !newValue, volume <= 0.001 {
-                volume = 0.1
-                _ = device.setVolume(volume, scope: volumeScope)
-            }
-        } else {
-            refreshVolumeFromDevice(reprobeSupport: false)
-        }
-    }
-
-    private func refreshVolumeFromDevice(reprobeSupport: Bool) {
-        if reprobeSupport || !didProbeSupport {
-            supportsVolume = device.hasVolumeControl(scope: volumeScope)
-            supportsMute = device.hasMuteControl(scope: volumeScope)
-            didProbeSupport = true
-        }
-
-        if let current = device.getVolume(scope: volumeScope) {
-            volume = current
-        }
-        if let muted = device.getMute(scope: volumeScope) {
-            isMuted = muted
-        } else {
-            supportsMute = false
-            isMuted = false
-        }
-    }
-
-    private func startVolumeMonitor() {
-        stopVolumeMonitor()
-        guard isDeviceConnected else { return }
-        volumeMonitor = device.makeVolumeMonitor(scope: volumeScope) { [interaction] in
-            guard !interaction.isAdjustingVolume else { return }
-            refreshVolumeFromDevice(reprobeSupport: false)
-        }
-    }
-
-    private func stopVolumeMonitor() {
-        volumeMonitor?.stop()
-        volumeMonitor = nil
-    }
-
-    private func rowIcon(_ systemName: String) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: 14))
-            .frame(width: 28, height: 28)
-    }
-}
-
-private final class VolumeInteractionState {
-    var isAdjustingVolume = false
-}
-
-struct DeviceListHeader: View {
-    let title: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.headline)
-            Text("Check devices for your shortcut. Click a name or icon to switch to it.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal)
     }
 }
