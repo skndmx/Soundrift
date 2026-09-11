@@ -55,4 +55,43 @@ struct HotkeyValidatorTests {
             return
         }
     }
+
+    @Test func rejectsDuplicateMuteShortcut() {
+        let option = Int(NSEvent.ModifierFlags.option.rawValue)
+        let result = HotkeyValidator.validate(
+            keyCode: kVK_ANSI_M,
+            modifiers: option,
+            outputKeyCode: kVK_UpArrow,
+            outputModifiers: Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue),
+            inputKeyCode: kVK_DownArrow,
+            inputModifiers: Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue),
+            muteKeyCode: kVK_ANSI_M,
+            muteModifiers: option,
+            assigningTo: .output
+        )
+
+        guard case .failure(.duplicateWithMute) = result else {
+            Issue.record("Expected duplicate-with-mute failure")
+            return
+        }
+    }
+
+    @Test func allowsOptionMForMute() {
+        let result = HotkeyValidator.validate(
+            keyCode: kVK_ANSI_M,
+            modifiers: Int(NSEvent.ModifierFlags.option.rawValue),
+            outputKeyCode: kVK_UpArrow,
+            outputModifiers: Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue),
+            inputKeyCode: kVK_DownArrow,
+            inputModifiers: Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue),
+            muteKeyCode: kVK_ANSI_M,
+            muteModifiers: Int(NSEvent.ModifierFlags.option.rawValue),
+            assigningTo: .mute
+        )
+
+        guard case .success = result else {
+            Issue.record("Expected Option+M to be allowed for mute")
+            return
+        }
+    }
 }
