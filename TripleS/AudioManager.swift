@@ -545,22 +545,6 @@ class AudioManager: ObservableObject {
         saveSelectedInputDevices()
     }
 
-    func selectOutputDevice(_ device: AudioDevice) {
-        let target = device.resolvedLiveDevice(kind: .output) ?? device
-        if let current = AudioDevice.getCurrentDefault(), current.isSameAudioEndpoint(as: target) {
-            return
-        }
-        applyDefaultOutputDevice(device, notify: true)
-    }
-
-    func selectInputDevice(_ device: AudioDevice) {
-        let target = device.resolvedLiveDevice(kind: .input) ?? device
-        if let current = AudioDevice.getCurrentDefaultInput(), current.isSameAudioEndpoint(as: target) {
-            return
-        }
-        applyDefaultInputDevice(device, notify: true)
-    }
-
     /// Toggles mute on the current default microphone. Matches SoundSwitch: input only.
     @discardableResult
     func toggleCurrentInputMute() -> Bool {
@@ -617,6 +601,22 @@ class AudioManager: ObservableObject {
     func isCurrentInputMuted() -> Bool {
         let device = AudioDevice.getCurrentDefaultInput() ?? currentInputDevice
         return device?.getMute(scope: kAudioDevicePropertyScopeInput) ?? false
+    }
+
+    func selectOutputDevice(_ device: AudioDevice) {
+        let target = device.resolvedLiveDevice(kind: .output) ?? device
+        if let current = AudioDevice.getCurrentDefault(), current.isSameAudioEndpoint(as: target) {
+            return
+        }
+        applyDefaultOutputDevice(device, notify: true)
+    }
+
+    func selectInputDevice(_ device: AudioDevice) {
+        let target = device.resolvedLiveDevice(kind: .input) ?? device
+        if let current = AudioDevice.getCurrentDefaultInput(), current.isSameAudioEndpoint(as: target) {
+            return
+        }
+        applyDefaultInputDevice(device, notify: true)
     }
 
     private func applyDefaultOutputDevice(_ device: AudioDevice, notify: Bool) {

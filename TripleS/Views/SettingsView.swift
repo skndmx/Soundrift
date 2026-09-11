@@ -5,48 +5,87 @@ struct SettingsView: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Settings")
-                .font(.headline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("General")
+                        .font(.headline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("How to use")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("1. Check devices to include in your shortcut")
-                    Text("2. Tap the eye icon to hide devices you don't need")
-                    Text("3. Set keyboard shortcuts in the left sidebar")
-                    Text("4. Use the shortcuts to switch devices or mute the microphone")
+                    GroupedDeviceList {
+                        Toggle("Launch at login", isOn: $launchAtLogin)
+                            .toggleStyle(.switch)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: SoundriftTheme.rowHeight)
+                            .onChange(of: launchAtLogin) { _, newValue in
+                                if newValue {
+                                    try? SMAppService.mainApp.register()
+                                } else {
+                                    try? SMAppService.mainApp.unregister()
+                                }
+                            }
+                    }
+
+                    Text("Soundrift stays in the menu bar. Close the window to hide the Dock icon.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hidden devices")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("Use the eye icon on any device row to hide it. Hidden devices move to the Hidden section at the bottom of the Output or Input tab, where you can unhide them.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("About")
+                        .font(.headline)
 
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) { _, newValue in
-                    if newValue {
-                        try? SMAppService.mainApp.register()
-                    } else {
-                        try? SMAppService.mainApp.unregister()
+                    GroupedDeviceList {
+                        settingsInfoRow(label: "Version", value: SoundriftTheme.appVersion)
+                        Divider()
+                            .padding(.leading, 12)
+                        settingsInfoRow(label: "Created by", value: "Kevin Jin")
                     }
                 }
 
-            Spacer()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tips")
+                        .font(.headline)
+
+                    GroupedDeviceList {
+                        VStack(alignment: .leading, spacing: 8) {
+                            tipRow("Check devices to include them in shortcut rotation.")
+                            tipRow("Click a device name to switch to it immediately.")
+                            tipRow("Hide unused devices with the eye icon; restore them from Hidden.")
+                            tipRow("Record global shortcuts in the Shortcuts tab.")
+                            tipRow("Use the mute shortcut or menu bar item to mute the microphone.")
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .frame(maxWidth: 720, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
-        .padding()
+    }
+
+    private func settingsInfoRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer(minLength: 12)
+            Text(value)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: SoundriftTheme.rowHeight)
+    }
+
+    private func tipRow(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
 #Preview {
     SettingsView()
+        .frame(width: SoundriftTheme.windowWidth, height: SoundriftTheme.windowHeight)
 }

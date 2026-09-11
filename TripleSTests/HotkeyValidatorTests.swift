@@ -4,7 +4,7 @@ import Testing
 
 struct HotkeyValidatorTests {
     private let commandShift = Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
-    private let controlOption = Int(NSEvent.ModifierFlags.control.rawValue | NSEvent.ModifierFlags.option.rawValue)
+    private let option = Int(NSEvent.ModifierFlags.option.rawValue)
 
     @Test func rejectsCommandV() {
         let result = HotkeyValidator.validate(
@@ -14,9 +14,7 @@ struct HotkeyValidatorTests {
             outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
             inputModifiers: commandShift,
-            muteKeyCode: kVK_ANSI_M,
-            muteModifiers: controlOption,
-            assigningTo: .output
+            assigningToInput: false
         )
 
         guard case .failure(.reservedSystemShortcut) = result else {
@@ -33,13 +31,11 @@ struct HotkeyValidatorTests {
             outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
             inputModifiers: commandShift,
-            muteKeyCode: kVK_ANSI_M,
-            muteModifiers: controlOption,
-            assigningTo: .output
+            assigningToInput: false
         )
 
-        guard case .success = result else {
-            Issue.record("Expected Command-Shift-Up to be allowed")
+        guard case .failure(.duplicateWithInput) = result else {
+            Issue.record("Expected duplicate-with-input failure")
             return
         }
     }
@@ -52,9 +48,7 @@ struct HotkeyValidatorTests {
             outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
             inputModifiers: commandShift,
-            muteKeyCode: kVK_ANSI_M,
-            muteModifiers: controlOption,
-            assigningTo: .input
+            assigningToInput: true
         )
 
         guard case .failure(.duplicateWithOutput) = result else {
@@ -66,13 +60,13 @@ struct HotkeyValidatorTests {
     @Test func rejectsDuplicateMuteShortcut() {
         let result = HotkeyValidator.validate(
             keyCode: kVK_ANSI_M,
-            modifiers: controlOption,
+            modifiers: option,
             outputKeyCode: kVK_UpArrow,
             outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
             inputModifiers: commandShift,
             muteKeyCode: kVK_ANSI_M,
-            muteModifiers: controlOption,
+            muteModifiers: option,
             assigningTo: .output
         )
 
@@ -82,22 +76,47 @@ struct HotkeyValidatorTests {
         }
     }
 
-    @Test func allowsControlOptionMForMute() {
+    @Test func allowsDistinctMuteShortcut() {
         let result = HotkeyValidator.validate(
             keyCode: kVK_ANSI_M,
-            modifiers: controlOption,
+            modifiers: option,
             outputKeyCode: kVK_UpArrow,
             outputModifiers: commandShift,
             inputKeyCode: kVK_DownArrow,
             inputModifiers: commandShift,
             muteKeyCode: kVK_ANSI_N,
-            muteModifiers: controlOption,
+            muteModifiers: option,
             assigningTo: .mute
         )
 
         guard case .success = result else {
-            Issue.record("Expected Control-Option-M to be allowed for mute")
+            Issue.record("Expected option-M to be accepted for mute")
             return
         }
+    }
+}
+
+struct HotkeyDisplayTests {
+    private let commandShift = Int(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
+    private let option = Int(NSEvent.ModifierFlags.option.rawValue)
+
+    @Test func outputDefaultUsesSeparateKeycaps() {
+        #expect(
+            HotkeyDisplay.keycaps(modifiers: commandShift, keyCode: kVK_UpArrow) == ["⇧", "⌘", "↑"]
+        )
+        #expect(HotkeyDisplay.string(modifiers: commandShift, keyCode: kVK_UpArrow) == "⇧⌘↑")
+    }
+
+    @Test func inputDefaultUsesDownArrow() {
+        #expect(
+            HotkeyDisplay.keycaps(modifiers: commandShift, keyCode: kVK_DownArrow) == ["⇧", "⌘", "↓"]
+        )
+    }
+
+    @Test func muteDefaultUsesOptionM() {
+        #expect(
+            HotkeyDisplay.keycaps(modifiers: option, keyCode: kVK_ANSI_M) == ["⌥", "M"]
+        )
+        #expect(HotkeyDisplay.string(modifiers: option, keyCode: kVK_ANSI_M) == "⌥M")
     }
 }

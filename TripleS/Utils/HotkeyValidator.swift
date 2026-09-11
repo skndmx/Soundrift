@@ -69,8 +69,8 @@ enum HotkeyValidator {
         outputModifiers: Int,
         inputKeyCode: Int,
         inputModifiers: Int,
-        muteKeyCode: Int,
-        muteModifiers: Int,
+        muteKeyCode: Int = 0,
+        muteModifiers: Int = 0,
         assigningTo: HotkeyAssignment
     ) -> Result<Void, HotkeyValidationError> {
         let normalized = normalizedModifiers(modifiers)
@@ -82,25 +82,55 @@ enum HotkeyValidator {
             return .failure(.reservedSystemShortcut(reason))
         }
 
-        let others: [(HotkeyAssignment, Int, Int, HotkeyValidationError)] = [
-            (.output, outputKeyCode, outputModifiers, .duplicateWithOutput),
-            (.input, inputKeyCode, inputModifiers, .duplicateWithInput),
-            (.mute, muteKeyCode, muteModifiers, .duplicateWithMute)
-        ]
+        let candidate = (keyCode, normalized)
+        let output = (outputKeyCode, normalizedModifiers(outputModifiers))
+        let input = (inputKeyCode, normalizedModifiers(inputModifiers))
+        let mute = (muteKeyCode, normalizedModifiers(muteModifiers))
 
-        for (assignment, existingKeyCode, existingModifiers, error) in others {
-            guard assignment != assigningTo else { continue }
-            if hotkeysMatch(
-                keyCode: keyCode,
-                modifiers: normalized,
-                keyCode: existingKeyCode,
-                modifiers: existingModifiers
-            ) {
-                return .failure(error)
-            }
+        if assigningTo != .output, matches(candidate, output) {
+            return .failure(.duplicateWithOutput)
+        }
+        if assigningTo != .input, matches(candidate, input) {
+            return .failure(.duplicateWithInput)
+        }
+        if assigningTo != .mute, muteKeyCode != 0, matches(candidate, mute) {
+            return .failure(.duplicateWithMute)
         }
 
         return .success(())
+    }
+
+    /// Compatibility wrapper for the previous `assigningToInput` flag.
+    static func validate(
+        keyCode: Int,
+        modifiers: Int,
+        outputKeyCode: Int,
+        outputModifiers: Int,
+        inputKeyCode: Int,
+        inputModifiers: Int,
+        assigningToInput: Bool
+    ) -> Result<Void, HotkeyValidationError> {
+        validate(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            outputKeyCode: outputKeyCode,
+            outputModifiers: outputModifiers,
+            inputKeyCode: inputKeyCode,
+            inputModifiers: inputModifiers,
+            assigningTo: assigningToInput ? .input : .output
+        )
+    }
+
+    private static func matches(
+        _ lhs: (Int, Int),
+        _ rhs: (Int, Int)
+    ) -> Bool {
+        hotkeysMatch(
+            keyCode: lhs.0,
+            modifiers: lhs.1,
+            keyCode: rhs.0,
+            modifiers: rhs.1
+        )
     }
 
     private static func reservedReason(keyCode: Int, modifiers: Int) -> String? {
