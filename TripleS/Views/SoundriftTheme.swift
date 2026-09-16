@@ -18,7 +18,7 @@ enum SoundriftTheme {
     static let windowHeight: CGFloat = 540
 
     static var appVersion: String {
-        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.7.3"
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.8.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
         let parts = short.split(separator: ".")
         if parts.count >= 3 {

@@ -5,8 +5,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var mainWindow: NSWindow?
     private var mainHostingController: NSViewController?
     private var keyDownMonitor: Any?
+    private var menuBarController: SoundriftMenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        menuBarController = SoundriftMenuBarController { [weak self] in
+            self?.requestShowMainWindow()
+        }
         setupMainWindow()
         installCloseKeyMonitor()
     }
@@ -52,7 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func requestShowMainWindow() {
-        // MenuBarExtra still holds key window until the menu finishes closing.
+        // Status item menu still holds key window until it finishes closing.
         DispatchQueue.main.async { [weak self] in
             self?.presentMainWindow()
         }

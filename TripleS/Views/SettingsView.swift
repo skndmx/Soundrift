@@ -49,8 +49,9 @@ struct SettingsView: View {
 
                     GroupedDeviceList {
                         VStack(alignment: .leading, spacing: 8) {
+                            tipRow("Switch output and input from the menu bar icon.")
                             tipRow("Check devices to include them in shortcut rotation.")
-                            tipRow("Click a device name to switch to it immediately.")
+                            tipRow("Click a device name in this window to switch immediately.")
                             tipRow("Hide unused devices with the eye icon; restore them from Hidden.")
                             tipRow("Record global shortcuts in the Shortcuts tab.")
                             tipRow("Use the mute shortcut or menu bar item to mute the microphone.")

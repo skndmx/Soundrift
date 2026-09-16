@@ -10,21 +10,14 @@ struct TripleSApp: App {
     }
 
     var body: some Scene {
-        // MenuBarExtra first: no SwiftUI Window/WindowGroup scene, so close/reopen
-        // cannot spawn duplicate windows. AppDelegate owns the single NSWindow.
-        MenuBarExtra {
-            SoundriftMenuBarMenu {
-                appDelegate.requestShowMainWindow()
-            }
+        // Hidden extra: Scene for .commands without a second status item.
+        // AppDelegate owns the window and the visible NSStatusItem switcher.
+        // No Window/WindowGroup — close/reopen must not spawn duplicates.
+        MenuBarExtra(isInserted: .constant(false)) {
+            EmptyView()
         } label: {
-            // Match NSStatusItem sizing (squareLength ~18pt). Plain Image/Label
-            // in MenuBarExtra otherwise renders the asset smaller.
-            Image(nsImage: menuBarIconImage)
-                .resizable()
-                .renderingMode(.template)
-                .frame(width: 18, height: 18)
+            EmptyView()
         }
-        .menuBarExtraStyle(.menu)
         .commands {
             // Close lives in File (system saveItem group), which owns ⌘W on macOS.
             CommandGroup(replacing: .saveItem) {
@@ -45,42 +38,5 @@ struct TripleSApp: App {
                 .keyboardShortcut("q", modifiers: .command)
             }
         }
-    }
-}
-
-private var menuBarIconImage: NSImage {
-    let image = NSImage(named: "MenuBarIcon") ?? NSImage(size: NSSize(width: 18, height: 18))
-    image.isTemplate = true
-    image.size = NSSize(width: 18, height: 18)
-    return image
-}
-
-private struct SoundriftMenuBarMenu: View {
-    let showMainWindow: () -> Void
-
-    var body: some View {
-        // Don't observe AudioManager here. MenuBarExtra(.menu) rebuilds the
-        // NSMenu on every @Published change, which eats the Show Main Window click.
-        Text("Current Device: \(AudioDevice.getCurrentDefault()?.name ?? "None")")
-
-        Divider()
-
-        Button(muteMicrophoneTitle) {
-            DeviceSwitchManager.shared.toggleMicrophoneMute()
-        }
-
-        Divider()
-
-        Button("Show Main Window", action: showMainWindow)
-
-        Divider()
-
-        Button("Quit Soundrift") {
-            NSApp.terminate(nil)
-        }
-    }
-
-    private var muteMicrophoneTitle: String {
-        AudioManager.shared.isCurrentInputMuted() ? "Unmute Microphone" : "Mute Microphone"
     }
 }
