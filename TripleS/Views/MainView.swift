@@ -27,7 +27,7 @@ struct MainView: View {
             Group {
                 switch tab {
                 case .devices:
-                    DevicesView(kind: $deviceKind)
+                    DevicesView(hotkeys: hotkeys, kind: $deviceKind)
                 case .shortcuts:
                     ShortcutsView(hotkeys: hotkeys)
                 case .settings:

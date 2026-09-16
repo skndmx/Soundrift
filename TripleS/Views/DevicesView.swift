@@ -2,17 +2,15 @@ import SwiftUI
 
 struct DevicesView: View {
     @StateObject private var audioManager = AudioManager.shared
+    @ObservedObject var hotkeys: HotkeyController
     @Binding var kind: DeviceType
 
     private var visibleDevices: [AudioDevice] {
-        switch kind {
-        case .output:
-            audioManager.visibleOutputDevices
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-        case .input:
-            audioManager.visibleInputDevices
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        let devices: [AudioDevice] = switch kind {
+        case .output: audioManager.visibleOutputDevices
+        case .input: audioManager.visibleInputDevices
         }
+        return Self.connectedFirst(devices)
     }
 
     private var hiddenDevices: [AudioDevice] {
@@ -33,6 +31,22 @@ struct DevicesView: View {
         }
     }
 
+    private var cycleKeycaps: [String] {
+        switch kind {
+        case .output: hotkeys.outputKeycaps
+        case .input: hotkeys.inputKeycaps
+        }
+    }
+
+    private static func connectedFirst(_ devices: [AudioDevice]) -> [AudioDevice] {
+        devices.sorted { lhs, rhs in
+            if lhs.isConnected != rhs.isConnected {
+                return lhs.isConnected && !rhs.isConnected
+            }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
     var body: some View {
         ScrollView {
             GlassEffectContainer(spacing: 18) {
@@ -46,11 +60,11 @@ struct DevicesView: View {
                 .frame(maxWidth: 220)
 
                 if let currentDevice {
-                    ActiveDeviceHero(device: currentDevice, kind: kind)
+                    ActiveDeviceHero(device: currentDevice, kind: kind, cycleKeycaps: cycleKeycaps)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("In rotation")
+                    Text("Devices")
                         .font(.headline)
 
                     Text("Checked devices cycle with your shortcut. Adjust volume or mute before switching.")

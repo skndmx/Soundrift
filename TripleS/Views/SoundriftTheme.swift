@@ -3,7 +3,8 @@ import SwiftUI
 enum SoundriftTheme {
     /// System Settings–like indigo accent (~#5E5CE6).
     static let accent = Color(red: 94 / 255, green: 92 / 255, blue: 230 / 255)
-    static let activeGreen = Color(red: 48 / 255, green: 209 / 255, blue: 88 / 255)
+    static let activeGreen = Color(red: 13 / 255, green: 167 / 255, blue: 105 / 255)
+    static let onActiveGreen = Color(red: 231 / 255, green: 245 / 255, blue: 240 / 255)
     static let recordingRed = Color(red: 255 / 255, green: 69 / 255, blue: 58 / 255)
 
     static let rowHeight: CGFloat = 40
@@ -13,7 +14,7 @@ enum SoundriftTheme {
     static let windowHeight: CGFloat = 540
 
     static var appVersion: String {
-        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.7.1"
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.7.2"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
         let parts = short.split(separator: ".")
         if parts.count >= 3 {

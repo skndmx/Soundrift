@@ -5,6 +5,7 @@ import CoreAudio
 struct ActiveDeviceHero: View {
     let device: AudioDevice
     let kind: DeviceType
+    var cycleKeycaps: [String] = []
 
     var body: some View {
         HStack(spacing: 12) {
@@ -17,7 +18,7 @@ struct ActiveDeviceHero: View {
                 .font(.body.weight(.semibold))
                 .lineLimit(1)
 
-            ActiveStatusPill()
+            ActiveStatusShortcutPill(keycaps: cycleKeycaps)
 
             Spacer(minLength: 12)
 
@@ -29,22 +30,52 @@ struct ActiveDeviceHero: View {
         .frame(minHeight: 52)
         .soundriftHeroGlass()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(device.name), Active")
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        let shortcut = cycleKeycaps.joined(separator: " ")
+        if shortcut.isEmpty {
+            return "\(device.name), Active"
+        }
+        return "\(device.name), Active, shortcut \(shortcut)"
     }
 }
 
-struct ActiveStatusPill: View {
+struct ActiveStatusShortcutPill: View {
+    var keycaps: [String] = []
+
     var body: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(.white)
-                .frame(width: 6, height: 6)
-            Text("Active")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
+        HStack(spacing: 0) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(SoundriftTheme.onActiveGreen)
+                    .frame(width: 6, height: 6)
+                Text("Active")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SoundriftTheme.onActiveGreen)
+            }
+            .padding(.leading, 8)
+            .padding(.trailing, keycaps.isEmpty ? 8 : 7)
+            .padding(.vertical, 3)
+
+            if !keycaps.isEmpty {
+                Rectangle()
+                    .fill(SoundriftTheme.onActiveGreen.opacity(0.35))
+                    .frame(width: 1, height: 11)
+
+                HStack(spacing: 3) {
+                    ForEach(Array(keycaps.enumerated()), id: \.offset) { _, symbol in
+                        Text(symbol)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(SoundriftTheme.onActiveGreen)
+                    }
+                }
+                .padding(.leading, 7)
+                .padding(.trailing, 8)
+                .padding(.vertical, 3)
+            }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
         .background(SoundriftTheme.activeGreen, in: Capsule())
     }
 }
