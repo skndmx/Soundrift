@@ -47,7 +47,7 @@ struct ShortcutsView: View {
 
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "lightbulb")
-                        .foregroundStyle(SoundriftTheme.accent)
+                        .foregroundStyle(SoundriftTheme.accentOnGlass)
                         .font(.system(size: 13, weight: .medium))
                     Text("Tip: avoid shortcuts already used by MacOS or other apps.")
                         .font(.subheadline)
@@ -79,7 +79,7 @@ struct ShortcutsView: View {
         return HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(SoundriftTheme.accent)
+                .foregroundStyle(SoundriftTheme.accentOnGlass)
                 .frame(width: 22, height: 22)
 
             Text(title)

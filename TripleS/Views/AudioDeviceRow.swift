@@ -46,7 +46,7 @@ struct AudioDeviceRow: View {
                 setSelected(!isSelected)
             } label: {
                 Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(isSelected ? SoundriftTheme.accent : Color.secondary.opacity(0.7))
+                    .foregroundStyle(isSelected ? SoundriftTheme.accentOnGlass : Color.secondary.opacity(0.7))
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 20, height: 20)
             }
@@ -76,9 +76,7 @@ struct AudioDeviceRow: View {
                     .disabled(!isDeviceConnected)
                     .help(switchHelp)
 
-                    Text(statusText)
-                        .font(.subheadline)
-                        .foregroundStyle(statusColor)
+                    statusLabel
                         .frame(minWidth: 72, alignment: .trailing)
 
                     Button(action: hideDevice) {
@@ -104,16 +102,21 @@ struct AudioDeviceRow: View {
         .opacity(isDeviceConnected ? 1 : 0.55)
     }
 
-    private var statusColor: Color {
+    @ViewBuilder
+    private var statusLabel: some View {
         if isCurrentDevice, isDeviceConnected {
-            return SoundriftTheme.accent
+            // Solid chip, not tinted text — indigo on dark glass disappears.
+            ActiveStatusShortcutPill()
+        } else {
+            Text(statusText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
-        return .secondary
     }
 
     private var rowBackground: Color {
         if isCurrentDevice, isDeviceConnected {
-            return SoundriftTheme.accent.opacity(0.12)
+            return SoundriftTheme.activeGreen.opacity(0.12)
         }
         return .clear
     }
